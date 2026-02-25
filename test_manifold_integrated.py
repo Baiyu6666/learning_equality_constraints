@@ -46,10 +46,10 @@ from viz import plot_planner_grid, visualize_all
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset", type=str, default="twosphere3d", choices=list(build_datasets().keys()))
+    parser.add_argument("--dataset", type=str, default="circle2d", choices=list(build_datasets().keys()))
     parser.add_argument("--models", type=str, default="both", choices=["ae", "vae", "both"])
     parser.add_argument("--latent_dim", type=int, default=-1, help="If -1, use dataset default.")
-    parser.add_argument("--train_n", type=int, default=600)
+    parser.add_argument("--train_n", type=int, default=50)
     parser.add_argument("--eval_on_n", type=int, default=500)
     parser.add_argument("--eval_off_n", type=int, default=500)
     parser.add_argument("--sample_latent_n", type=int, default=150)

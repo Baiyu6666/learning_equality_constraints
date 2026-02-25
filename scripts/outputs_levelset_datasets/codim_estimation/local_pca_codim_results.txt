@@ -1,0 +1,24 @@
+Local-PCA eigengap codim estimation
+datasets=21, sample_ratio=0.2, k_neighbors=0
+
+figure_eight: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+high_curvature: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+ellipse: d=2, codim=1, mode_fraction=1.000, hist={'1': 76}
+noise_only: d=2, codim=1, mode_fraction=1.000, hist={'1': 26}
+sine: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+sparse_only: d=2, codim=1, mode_fraction=1.000, hist={'1': 16}
+discontinuous: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+looped_spiro: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+sharp_star: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+hetero_noise: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+double_valley: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+hairpin: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+planar_arm_line_n2: d=2, codim=1, mode_fraction=1.000, hist={'1': 102}
+planar_arm_line_n3: d=3, codim=1, mode_fraction=0.941, hist={'1': 96, '2': 6}
+spatial_arm_plane_n3: d=3, codim=1, mode_fraction=1.000, hist={'1': 102}
+spatial_arm_circle_n3: d=3, codim=2, mode_fraction=1.000, hist={'2': 102}
+spatial_arm_plane_n4: d=4, codim=1, mode_fraction=0.794, hist={'1': 81, '2': 11, '3': 10}
+saddle_surface: d=3, codim=1, mode_fraction=1.000, hist={'1': 102}
+sphere_surface: d=3, codim=1, mode_fraction=1.000, hist={'1': 102}
+torus_surface: d=3, codim=1, mode_fraction=0.990, hist={'1': 101, '2': 1}
+spatial_arm_up_n6: d=6, codim=2, mode_fraction=1.000, hist={'2': 102}

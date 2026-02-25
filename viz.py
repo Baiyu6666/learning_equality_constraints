@@ -95,7 +95,7 @@ def visualize_all(
             n = len(x)
             idx = np.arange(n)
             if n > max_arrows_2d:
-                idx = np.random.choice(n, size=max_arrows_2d, replace=False)
+                idx = np.random.choice(n, size=3 * max_arrows_2d, replace=False)
 
             # dashed line segments: same color for all
             for i in idx:
@@ -108,7 +108,15 @@ def visualize_all(
                     color=arrow_color,
                 )
 
-            ax.scatter(x_proj[idx, 0], x_proj[idx, 1], s=14, alpha=0.85, label="projected")
+            ax.scatter(
+                x_proj[idx, 0],
+                x_proj[idx, 1],
+                s=26,
+                alpha=0.9,
+                marker="x",
+                color="red",
+                label="projected",
+            )
             ax.set_aspect("equal")
             ax.set_title(title)
             ax.legend(loc="best")
@@ -119,7 +127,7 @@ def visualize_all(
             n = len(x)
             idx = np.arange(n)
             if n > max_arrows_3d:
-                idx = np.random.choice(n, size=max_arrows_3d, replace=False)
+                idx = np.random.choice(n, size=3 * max_arrows_3d, replace=False)
 
             for i in idx:
                 ax.plot(
@@ -136,8 +144,10 @@ def visualize_all(
                 x_proj[idx, 0],
                 x_proj[idx, 1],
                 x_proj[idx, 2],
-                s=16,
-                alpha=0.85,
+                s=28,
+                alpha=0.9,
+                marker="x",
+                color="red",
                 label="projected",
             )
             ax.set_title(title)
@@ -285,13 +295,19 @@ def plot_conditional_decodes(
 
 
 def plot_planner_grid(ds, x_train: np.ndarray, cases, title_prefix: str = "Planner") -> None:
-    fig = plt.figure(figsize=(20, 8))
+    row_order = [k for k in ["projected", "latent", "linear_projected"] if k in cases]
+    if not row_order:
+        return
+    n_rows = len(row_order)
+    n_cols = max(len(cases.get(k, [])) for k in row_order)
+    n_cols = max(1, n_cols)
+    fig = plt.figure(figsize=(5 * n_cols, 4 * n_rows))
 
     def _make_ax(row, col):
-        pos = row * 4 + col + 1  # 1..8
+        pos = row * n_cols + col + 1
         if ds.dim == 2:
-            return fig.add_subplot(2, 4, pos)
-        return fig.add_subplot(2, 4, pos, projection="3d")
+            return fig.add_subplot(n_rows, n_cols, pos)
+        return fig.add_subplot(n_rows, n_cols, pos, projection="3d")
 
     def _plot_case(ax, case, title):
         traj = case["traj"]
@@ -317,7 +333,7 @@ def plot_planner_grid(ds, x_train: np.ndarray, cases, title_prefix: str = "Plann
             f"mean dist GT={metrics['mean_gt_dist']:.4f}\n"
             f"on/off={metrics['on_count']}/{metrics['off_count']}  on%={metrics['on_ratio'] * 100:.1f}%"
         )
-        ax.text2D(
+        ax.text(
             0.98,
             0.98,
             text,
@@ -328,13 +344,15 @@ def plot_planner_grid(ds, x_train: np.ndarray, cases, title_prefix: str = "Plann
             bbox=dict(boxstyle="round,pad=0.25", facecolor="white", alpha=0.7, edgecolor="none"),
         )
 
-    for i, case in enumerate(cases["projected"]):
-        ax = _make_ax(0, i)
-        _plot_case(ax, case, f"{title_prefix}: projected path #{i+1}")
-
-    for i, case in enumerate(cases["latent"]):
-        ax = _make_ax(1, i)
-        _plot_case(ax, case, f"{title_prefix}: latent path #{i+1}")
+    title_map = {
+        "projected": "projected",
+        "latent": "latent",
+        "linear_projected": "linear->DE",
+    }
+    for r, key in enumerate(row_order):
+        for i, case in enumerate(cases.get(key, [])):
+            ax = _make_ax(r, i)
+            _plot_case(ax, case, f"{title_prefix}: {title_map.get(key, key)} path #{i+1}")
 
     fig.suptitle(f"{title_prefix} | Dataset: {ds.name}", fontsize=14)
     plt.tight_layout()

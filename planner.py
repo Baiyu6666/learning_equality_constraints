@@ -82,6 +82,23 @@ def plan_latent_linear_path(
     return x.detach().cpu().numpy()
 
 
+def plan_linear_then_decode_project(
+    x0: np.ndarray,
+    x1: np.ndarray,
+    project_fn: Callable[[torch.Tensor], torch.Tensor],
+    device: torch.device,
+    n_steps: int = 64,
+) -> np.ndarray:
+    """Linear interpolation in x-space, then one-shot decode/project at each point."""
+    x0_t = to_tensor(x0[None, :], device)
+    x1_t = to_tensor(x1[None, :], device)
+    t = torch.linspace(0.0, 1.0, steps=n_steps + 1, device=device)[:, None]
+    x_lin = (1.0 - t) * x0_t + t * x1_t
+    with torch.no_grad():
+        x_proj = project_fn(x_lin)
+    return x_proj.detach().cpu().numpy()
+
+
 def trajectory_metrics(
     x_traj: np.ndarray,
     gt_distance_fn: Callable[[np.ndarray], np.ndarray],
@@ -120,7 +137,7 @@ def build_planner_cases(
     device: torch.device,
     n_steps: int,
 ) -> Dict[str, List[Dict[str, object]]]:
-    cases = {"projected": [], "latent": []}
+    cases = {"projected": [], "latent": [], "linear_projected": []}
 
     for x0, x1 in x_pairs:
         traj_proj = plan_projected_path(
@@ -143,5 +160,19 @@ def build_planner_cases(
         )
         m_lat = trajectory_metrics(traj_lat, gt_distance_fn, project_fn, threshold, device)
         cases["latent"].append({"x0": x0, "x1": x1, "traj": traj_lat, "metrics": m_lat})
+
+        traj_lin_proj = plan_linear_then_decode_project(
+            x0=x0,
+            x1=x1,
+            project_fn=project_fn,
+            device=device,
+            n_steps=n_steps,
+        )
+        m_lin_proj = trajectory_metrics(
+            traj_lin_proj, gt_distance_fn, project_fn, threshold, device
+        )
+        cases["linear_projected"].append(
+            {"x0": x0, "x1": x1, "traj": traj_lin_proj, "metrics": m_lin_proj}
+        )
 
     return cases

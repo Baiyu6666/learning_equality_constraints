@@ -1,0 +1,12 @@
+=== Evaluation Metrics (per dataset) ===
+energy   sharp_star     on_mean_v=0.0004 proj_manifold_dist=0.0674 proj_v_residual=0.0442 proj_true_dist=0.2337 corr_v_d2=0.9663 slope_v_d2=1.1427 proj_steps=6.36 pred_recall=0.6496 FPrate=0.0104
+energy   figure_eight   on_mean_v=0.0000 proj_manifold_dist=0.0111 proj_v_residual=0.0090 proj_true_dist=0.0291 corr_v_d2=0.9744 slope_v_d2=0.5006 proj_steps=8.11 pred_recall=0.3615 FPrate=0.0008
+energy   ellipse        on_mean_v=0.0000 proj_manifold_dist=0.0047 proj_v_residual=0.0039 proj_true_dist=0.0252 corr_v_d2=0.9899 slope_v_d2=0.5268 proj_steps=12.50 pred_recall=0.0826 FPrate=0.0000
+energy   discontinuous  on_mean_v=0.0000 proj_manifold_dist=0.3264 proj_v_residual=0.0031 proj_true_dist=0.3924 corr_v_d2=0.7204 slope_v_d2=0.2530 proj_steps=17.70 pred_recall=0.0482 FPrate=0.0016
+energy   noise_only     on_mean_v=0.0010 proj_manifold_dist=0.1655 proj_v_residual=0.0685 proj_true_dist=0.2765 corr_v_d2=0.8883 slope_v_d2=0.2459 proj_steps=12.57 pred_recall=0.8457 FPrate=0.0343
+energy   sparse_only    on_mean_v=0.0000 proj_manifold_dist=0.0520 proj_v_residual=0.0044 proj_true_dist=0.1241 corr_v_d2=0.8740 slope_v_d2=0.4865 proj_steps=12.75 pred_recall=0.0755 FPrate=0.0005
+energy   sine           on_mean_v=0.0000 proj_manifold_dist=0.0556 proj_v_residual=0.0023 proj_true_dist=0.1158 corr_v_d2=0.9038 slope_v_d2=0.3894 proj_steps=16.23 pred_recall=0.0178 FPrate=0.0005
+energy   looped_spiro   on_mean_v=0.0000 proj_manifold_dist=0.0259 proj_v_residual=0.0105 proj_true_dist=0.0839 corr_v_d2=0.9879 slope_v_d2=0.4848 proj_steps=10.99 pred_recall=0.2161 FPrate=0.0028
+
+=== Evaluation Metrics (mean over datasets) ===
+energy   on_mean_v=0.0002 proj_manifold_dist=0.0886 proj_v_residual=0.0182 proj_true_dist=0.1601 corr_v_d2=0.9131 slope_v_d2=0.5037 proj_steps=12.15 pred_recall=0.2871 FPrate=0.0064 norm_proj_manifold_dist=-0.9276

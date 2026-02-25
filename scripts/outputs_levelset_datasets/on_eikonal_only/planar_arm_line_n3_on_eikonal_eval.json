@@ -1,0 +1,11 @@
+{
+  "bidirectional_chamfer": 0.1451406627893448,
+  "gt_to_learned_mean": 0.01563243567943573,
+  "learned_to_gt_mean": 0.12950822710990906,
+  "gt_to_learned_p95": 0.036555662751197815,
+  "learned_to_gt_p95": 0.46724560856819153,
+  "dist_space": "workspace",
+  "n_gt": 512,
+  "n_learned": 2048,
+  "eps_stop": 0.3901376724243164
+}
