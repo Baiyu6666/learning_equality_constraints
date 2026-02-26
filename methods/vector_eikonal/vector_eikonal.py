@@ -1,0 +1,574 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+from __future__ import annotations
+
+import os
+import time
+import json
+from dataclasses import dataclass, asdict
+from types import SimpleNamespace
+from typing import Any
+
+import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from torch import nn
+
+from evaluator.evaluator import eval_bounds_from_train
+from datasets.constraint_datasets import set_seed
+from methods.vector_eikonal.plots import (
+    _plot_constraint_2d,
+    _plot_highdim_pca,
+    _plot_planar_arm_planning,
+    _plot_projection_value_distribution,
+    _plot_training_diagnostics,
+    _plot_zero_surfaces_3d,
+    _render_ur5_pybullet_trajectories,
+)
+from methods.dataset_resolve import resolve_dataset
+from methods.eval_runner import run_eval_metrics
+from methods.kinematics_utils import (
+    is_arm_dataset as _is_arm_dataset,
+    workspace_embed_for_eval as shared_workspace_embed_for_eval,
+    wrap_np_pi as _wrap_np_pi,
+)
+from methods.projection_utils import (
+    project_points_with_steps_numpy,
+    project_trajectory_numpy,
+)
+from methods.mlp_utils import MLP
+from methods.vector_eikonal.codim_utils import estimate_codim_local_pca
+
+# Backward-compatible symbol used by plan_on_eikonal_only.py
+MLPConstraint = MLP
+
+DEFAULT_DATASETS = [
+    # "3d_torus_surface",
+
+    "3d_planar_arm_line_n3",
+    # "3d_vz_2d_sine",
+    # "3d_0z_2d_ellipse"
+    # "3d_spatial_arm_circle_n3",
+
+    # "3d_spatial_arm_plane_n3",
+    # "6d_spatial_arm_up_n6_py",
+    # "6d_spatial_arm_up_n6",
+
+]
+DEFAULT_OUTDIR = "outputs_levelset_datasets/on_eikonal_only"
+
+@dataclass
+class DemoCfg:
+    seed: int = 2116
+    device: str = "auto"
+    n_train: int = 512
+    n_grid: int = 4096
+    hidden: int = 128
+    depth: int = 3
+    lr: float = 2e-4
+    lr_decay_step: int = 1000  # <=0 disables LR decay
+    lr_decay_gamma: float = 0.5  # multiplicative decay factor
+    epochs: int = 2000
+    batch_size: int = 128
+    lam_eikonal: float = 0.25
+    lam_eikonal_ortho: float = 1.0
+    eikonal_near_ratio: float = 0.85
+    eikonal_near_std_ratio: float = 0.05
+    train_sample_pad_ratio: float = 0.6
+    train_min_axis_span_ratio: float = 0.08
+    metric_eval_every: int = 1
+    proj_alpha: float = 0.3
+    proj_steps: int = 100
+    proj_min_steps: int = 30
+    n_traj: int = 64
+
+    constraint_dim: Any = "auto"     # Can be int or "auto".
+    codim_auto_sample_ratio: float = 0.2
+    codim_auto_k_neighbors: int = 16
+    codim_auto_const_axis_std_ratio: float = 1e-3
+    codim_auto_strict_check: bool = True
+
+    show_3d_plot: bool = not False
+    surface_plot_n: int = 28
+    surface_eval_chunk: int = 8192
+    surface_max_points: int = 5000
+    plot_train_max_points: int = 1200
+    plot_traj_max_count: int = 24
+    plot_traj_stride: int = 2
+    surface_use_marching_cubes: bool = True
+    plan_pair_min_ratio: float = 0.15
+    plan_pair_max_ratio: float = 0.35
+    plan_pair_tries: int = 1200
+    plan_init_mode: str = "joint_spline"  # "joint_spline" or "workspace_ik"
+    plan_joint_mid_noise: float = 0.0
+    plan_lam_manifold: float = 1.0
+    plan_lam_len_joint: float = 0.40
+    # Planner stabilization against sudden jumps/branch switching.
+    plan_opt_steps: int = 1240
+    plan_opt_lr: float = 0.01
+    plan_opt_lam_smooth: float = 0.2
+    plan_trust_scale: float = 0.8  # trust radius = scale * mean step of init path
+    plan_method: str = "trajectory_opt"  # "trajectory_opt" or "linear_project"
+    plan_anim_fps: int = 6
+    plan_anim_stride: int = 1
+    plan_save_gif: bool = not False
+    plan_pybullet_render: bool = True
+    plan_pybullet_real_time_dt: float = 0.06
+    train_log_every: int = 50
+    ur5_backend: str = "analytic"  # "analytic" or "pybullet"
+    # UR5 kinematics/render config now lives in datasets/ur5_pybullet_utils.py
+
+# ----------------------------------------------------------------------
+# Config layering:
+# 1) BASE_CFG = current default values (from DemoCfg)
+# 2) PROFILE_OVERRIDES = run mode (debug/fast/full)
+# 3) DATASET_OVERRIDES = per-dataset custom parameters
+# ----------------------------------------------------------------------
+ACTIVE_PROFILE = "default"
+BASE_CFG: dict[str, Any] = asdict(DemoCfg())
+PROFILE_OVERRIDES: dict[str, dict[str, Any]] = {
+    "default": {},
+    "debug": {
+        "n_train": 16,
+        "epochs": 50,
+        "n_traj": 32,
+        "train_log_every": 20,
+    },
+    "fast": {
+        "n_train": 256,
+        "epochs": 800,
+    },
+    "full": {},
+}
+
+DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
+    # Examples (edit as needed):
+    "6d_spatial_arm_up_n6_py": {
+        "n_train": 2048,
+        "epochs": 4,#000,
+        "constraint_dim": 2,
+        "lr": 2e-4,
+        "ur5_backend": "analytic",
+    },
+    "6d_spatial_arm_up_n6": {
+        "n_train": 512,
+        "epochs": 3000,
+        "constraint_dim": 2,
+        "lr": 3e-4,
+        "ur5_backend": "pybullet",
+
+    },
+}
+
+def build_cfg(dataset_name: str, profile: str = ACTIVE_PROFILE) -> DemoCfg:
+    cfg_dict = dict(BASE_CFG)
+    prof = PROFILE_OVERRIDES.get(str(profile), {})
+    if not prof and str(profile) != "default":
+        print(f"[warn] unknown profile '{profile}', fallback to base defaults")
+    cfg_dict.update(prof)
+    ds_ov = DATASET_OVERRIDES.get(str(dataset_name), {})
+    cfg_dict.update(ds_ov)
+    return DemoCfg(**cfg_dict)
+
+
+def _choose_device(device: str) -> str:
+    if device != "auto":
+        return device
+    return "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def _enable_interactive_backend_if_possible() -> bool:
+    for name in ("QtAgg", "TkAgg", "Qt5Agg"):
+        try:
+            plt.switch_backend(name)
+            return True
+        except Exception:
+            continue
+    return False
+
+
+def _uniform_in_box(n: int, mins: np.ndarray, maxs: np.ndarray) -> np.ndarray:
+    return np.random.uniform(mins, maxs, size=(n, len(mins))).astype(np.float32)
+
+
+def _resolve_dataset(name: str, cfg: DemoCfg) -> dict[str, Any]:
+    return resolve_dataset(
+        name,
+        cfg,
+        optimize_ur5_train_only=True,
+        ur5_backend=str(getattr(cfg, "ur5_backend", "analytic")),
+    )
+
+
+def _eikonal_multi_constraint(model: nn.Module, x: torch.Tensor, lam_ortho: float) -> torch.Tensor:
+    f = model(x)
+    if f.dim() == 1:
+        f = f.unsqueeze(1)
+    k = f.shape[1]
+    grads = []
+    for i in range(k):
+        gi = torch.autograd.grad(f[:, i].sum(), x, create_graph=True, retain_graph=True)[0]
+        grads.append(gi)
+    g = torch.stack(grads, dim=1)  # (B, k, d)
+    row_norm = torch.linalg.norm(g, dim=2)
+    loss_row = ((row_norm - 1.0) ** 2).mean()
+    if k <= 1:
+        return loss_row
+    gram = torch.matmul(g, g.transpose(1, 2))
+    eye = torch.eye(k, device=x.device, dtype=x.dtype).unsqueeze(0)
+    loss_ortho = ((gram - eye) ** 2).mean()
+    return loss_row + float(lam_ortho) * loss_ortho
+
+
+def train_on_eikonal_only(
+    cfg: DemoCfg, x_train: np.ndarray, constraint_dim: int
+) -> tuple[nn.Module, dict[str, np.ndarray]]:
+    x_t = torch.from_numpy(x_train)
+    ds = torch.utils.data.TensorDataset(x_t)
+    dl = torch.utils.data.DataLoader(
+        ds,
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        drop_last=False,
+        pin_memory=(cfg.device == "cuda"),
+        num_workers=0,
+    )
+    model = MLP(
+        in_dim=x_train.shape[1],
+        hidden=cfg.hidden,
+        depth=cfg.depth,
+        out_dim=max(1, int(constraint_dim)),
+    ).to(cfg.device)
+    opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
+    scheduler = None
+    if int(cfg.lr_decay_step) > 0 and float(cfg.lr_decay_gamma) < 1.0:
+        scheduler = torch.optim.lr_scheduler.StepLR(
+            opt,
+            step_size=int(cfg.lr_decay_step),
+            gamma=float(cfg.lr_decay_gamma),
+        )
+
+    mins = x_train.min(axis=0)
+    maxs = x_train.max(axis=0)
+    span_raw = maxs - mins
+    ref_span = max(float(np.max(span_raw)), 1e-6)
+    min_axis_span = max(0.0, float(cfg.train_min_axis_span_ratio)) * ref_span
+    span = np.maximum(span_raw, min_axis_span)
+    scale = max(1.0 + float(cfg.train_sample_pad_ratio), 1e-6)
+    center = 0.5 * (mins + maxs)
+    half = 0.5 * span * scale
+    mins, maxs = center - half, center + half
+    mins_t = torch.from_numpy(mins.astype(np.float32)).to(cfg.device)
+    maxs_t = torch.from_numpy(maxs.astype(np.float32)).to(cfg.device)
+    x_train_dev = x_t.to(cfg.device)
+    span_t = (maxs_t - mins_t).clamp_min(1e-6)
+    near_ratio = float(min(max(cfg.eikonal_near_ratio, 0.0), 1.0))
+    near_std_ratio = float(max(cfg.eikonal_near_std_ratio, 1e-5))
+
+    hist: dict[str, list[np.ndarray | float]] = {
+        "epoch": [],
+        "f_abs_mean": [],
+        "grad_norm_mean": [],
+        "ortho_err": [],
+    }
+
+    model.train()
+    for ep in range(cfg.epochs):
+        for (xb,) in dl:
+            xb = xb.to(cfg.device)
+            opt.zero_grad(set_to_none=True)
+
+            f_on = model(xb)
+            loss_on = (f_on ** 2).mean()
+
+            bsz, dim = xb.shape
+            n_near = max(0, min(int(round(bsz * near_ratio)), bsz))
+            n_box = bsz - n_near
+            parts = []
+            if n_near > 0:
+                idx = torch.randint(0, x_train_dev.shape[0], size=(n_near,), device=cfg.device)
+                x_near = x_train_dev[idx]
+                x_near = x_near + torch.randn_like(x_near) * (near_std_ratio * span_t)
+                x_near = torch.max(torch.min(x_near, maxs_t), mins_t)
+                parts.append(x_near)
+            if n_box > 0:
+                x_box = torch.rand((n_box, dim), device=cfg.device)
+                x_box = x_box * (maxs_t - mins_t) + mins_t
+                parts.append(x_box)
+            xr = torch.cat(parts, dim=0)
+            xr = xr[torch.randperm(xr.shape[0], device=cfg.device)]
+            xr.requires_grad_(True)
+
+            loss_eik = _eikonal_multi_constraint(model, xr, lam_ortho=float(cfg.lam_eikonal_ortho))
+            loss = loss_on + cfg.lam_eikonal * loss_eik
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+            opt.step()
+
+        if (ep % max(1, int(cfg.metric_eval_every))) == 0:
+            x_eval = x_train_dev.detach().clone().requires_grad_(True)
+            with torch.enable_grad():
+                f_eval = model(x_eval)
+                if f_eval.dim() == 1:
+                    f_eval = f_eval.unsqueeze(1)
+                k = f_eval.shape[1]
+                grads = []
+                for i in range(k):
+                    gi = torch.autograd.grad(
+                        f_eval[:, i].sum(),
+                        x_eval,
+                        create_graph=False,
+                        retain_graph=(i < k - 1),
+                    )[0]
+                    grads.append(gi)
+                g = torch.stack(grads, dim=1)  # (N, k, d)
+                grad_norm = torch.linalg.norm(g, dim=2)  # (N, k)
+                if k > 1:
+                    gram = torch.matmul(g, g.transpose(1, 2))
+                    eye = torch.eye(k, device=g.device, dtype=g.dtype).unsqueeze(0)
+                    ortho_err = torch.mean(torch.abs(gram - eye)).item()
+                else:
+                    ortho_err = 0.0
+            hist["epoch"].append(float(ep + 1))
+            hist["f_abs_mean"].append(torch.mean(torch.abs(f_eval), dim=0).detach().cpu().numpy())
+            hist["grad_norm_mean"].append(torch.mean(grad_norm, dim=0).detach().cpu().numpy())
+            hist["ortho_err"].append(float(ortho_err))
+            if ((ep + 1) % max(1, int(cfg.train_log_every))) == 0 or ep == 0 or (ep + 1) == int(cfg.epochs):
+                f_m = np.mean(np.abs(f_eval.detach().cpu().numpy()), axis=0)
+                g_m = np.mean(grad_norm.detach().cpu().numpy(), axis=0)
+                f_s = ", ".join([f"f{i+1}={v:.4f}" for i, v in enumerate(f_m)])
+                g_s = ", ".join([f"|grad f{i+1}|={v:.4f}" for i, v in enumerate(g_m)])
+                lr_now = float(opt.param_groups[0]["lr"])
+                print(
+                    f"[train] ep {ep+1:4d}/{cfg.epochs} | {f_s} | {g_s} | ortho={ortho_err:.5f} | lr={lr_now:.2e}"
+                )
+        if scheduler is not None:
+            scheduler.step()
+
+    out_hist = {
+        "epoch": np.asarray(hist["epoch"], dtype=np.float32),
+        "f_abs_mean": np.asarray(hist["f_abs_mean"], dtype=np.float32),
+        "grad_norm_mean": np.asarray(hist["grad_norm_mean"], dtype=np.float32),
+        "ortho_err": np.asarray(hist["ortho_err"], dtype=np.float32),
+    }
+    return model, out_hist
+
+
+def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
+    set_seed(cfg.seed)
+    print(f"[run] start dataset={name}")
+    ds = _resolve_dataset(name, cfg)
+    x_train = ds["x_train"]
+    data_dim = int(ds["data_dim"])
+    axis_labels = ds["axis_labels"]
+    print(f"[run] dataset ready: data_dim={data_dim}, n_train={len(x_train)}")
+
+    true_codim = int(ds.get("true_codim", 1))
+    if str(cfg.constraint_dim).lower() == "auto":
+        est = estimate_codim_local_pca(
+            x_train,
+            periodic_joint=_is_arm_dataset(name),
+            sample_ratio=float(cfg.codim_auto_sample_ratio),
+            k_neighbors=int(cfg.codim_auto_k_neighbors),
+            const_axis_std_ratio=float(cfg.codim_auto_const_axis_std_ratio),
+            seed=int(cfg.seed) + 1000,
+        )
+        codim = int(est["estimated_codim"])
+        print(
+            f"[codim-auto] {name}: estimated={codim}, true={true_codim}, "
+            f"mode_frac={est['mode_fraction']:.3f}, k={est['k_neighbors']}, n_sample={est['n_sample']}, "
+            f"const_axes={est['n_const_axes']}, d_eff={est['d_eff']}"
+        )
+        if bool(cfg.codim_auto_strict_check) and codim != true_codim:
+            raise RuntimeError(
+                f"[codim-auto] mismatch for {name}: estimated={codim}, true={true_codim}"
+            )
+    else:
+        codim = max(1, int(cfg.constraint_dim))
+        if data_dim == 2 and codim != 1:
+            print(f"[info] {name}: forcing constraint_dim=1 for 2D data")
+            codim = 1
+
+    model, train_hist = train_on_eikonal_only(cfg, x_train, constraint_dim=codim)
+    print(f"[run] training finished: dataset={name}")
+    os.makedirs(outdir, exist_ok=True)
+    ckpt_path = os.path.join(outdir, f"{name}_on_eikonal_model.pt")
+    torch.save(
+        {
+            "dataset": str(name),
+            "model_state": model.state_dict(),
+            "in_dim": int(x_train.shape[1]),
+            "constraint_dim": int(codim),
+            "hidden": int(cfg.hidden),
+            "depth": int(cfg.depth),
+            "x_train": x_train.astype(np.float32),
+            "cfg": asdict(cfg),
+        },
+        ckpt_path,
+    )
+    print(f"saved: {ckpt_path}")
+
+    def _project_last_with_steps(
+        m: nn.Module, x0_eval: np.ndarray, eps: float
+    ) -> tuple[np.ndarray, np.ndarray]:
+        x0_use = x0_eval.astype(np.float32)
+        q_end, steps = project_points_with_steps_numpy(
+            m,
+            x0_use,
+            device=str(cfg.device),
+            proj_steps=int(cfg.proj_steps),
+            proj_alpha=float(cfg.proj_alpha),
+            proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+            f_abs_stop=float(eps),
+        )
+        return q_end, steps
+
+    embed_fn = None
+    post_fn = None
+    if _is_arm_dataset(name):
+        embed_fn = lambda q, _name=name: shared_workspace_embed_for_eval(  # noqa: E731
+            _name,
+            q,
+            ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+        )
+        post_fn = _wrap_np_pi
+
+    eval_metrics, eval_cfg, eval_artifacts = run_eval_metrics(
+        cfg=cfg,
+        method_key="vector_eikonal",
+        dataset_name=name,
+        model=model,
+        x_train=x_train,
+        project_fn=_project_last_with_steps,
+        embed_fn=embed_fn,
+        postprocess_fn=post_fn,
+    )
+
+    vis_vals = asdict(cfg)
+    vis_vals.update(vars(eval_cfg))
+    vis_cfg = SimpleNamespace(**vis_vals)
+
+    mins, maxs = eval_bounds_from_train(x_train, eval_cfg)
+    x0 = _uniform_in_box(cfg.n_traj, mins, maxs)
+    with torch.no_grad():
+        f_on_t = model(torch.from_numpy(x_train).to(cfg.device))
+        if f_on_t.dim() == 1:
+            f_on_t = f_on_t.unsqueeze(1)
+        f_on_norm = torch.linalg.norm(f_on_t, dim=1).detach().cpu().numpy().reshape(-1)
+    eps_stop = float(np.percentile(np.abs(f_on_norm), eval_cfg.zero_eps_quantile))
+    traj = project_trajectory_numpy(
+        model,
+        x0,
+        device=str(cfg.device),
+        proj_steps=int(cfg.proj_steps),
+        proj_alpha=float(cfg.proj_alpha),
+        proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+        f_abs_stop=eps_stop,
+    )
+
+    out_eval = os.path.join(outdir, f"{name}_on_eikonal_eval.json")
+    with open(out_eval, "w", encoding="utf-8") as f:
+        json.dump(eval_metrics, f, indent=2, ensure_ascii=False)
+    print(
+        f"[eval] {name} | proj_dist={eval_metrics['proj_manifold_dist']:.6f} "
+        f"| pred_recall={eval_metrics['pred_recall']:.6f} "
+        f"| pred_FPrate={eval_metrics['pred_FPrate']:.6f} "
+        f"| chamfer={eval_metrics['bidirectional_chamfer']:.6f} "
+        f"| gt->learned={eval_metrics['gt_to_learned_mean']:.6f} "
+        f"| learned->gt={eval_metrics['learned_to_gt_mean']:.6f} "
+        f"| space={eval_metrics['dist_space']}"
+    )
+    print(
+        f"[eval] {name} | proj_steps={eval_metrics['proj_steps']:.2f} "
+        f"| proj_true_dist={eval_metrics['proj_true_dist']:.6f} "
+        f"| proj_v_residual={eval_metrics['proj_v_residual']:.6f} "
+        f"| eval_eps={eval_metrics['eval_eps_used']:.6f} "
+        f"| pred_precision={eval_metrics['pred_precision']:.6f}"
+    )
+    print(f"saved: {out_eval}")
+
+    out_diag = os.path.join(outdir, f"{name}_on_eikonal_training_diag.png")
+    _plot_training_diagnostics(train_hist, out_diag, title=f"{name}: training diagnostics (on-data)")
+    print(f"saved: {out_diag}")
+
+    planned_paths: list[np.ndarray] = []
+
+    if data_dim == 2:
+        out_path = os.path.join(outdir, f"{name}_on_eikonal_contour_traj.png")
+        _plot_constraint_2d(
+            model=model,
+            x_train=x_train,
+            traj=traj,
+            out_path=out_path,
+            title=f"{name}: on-loss + eikonal",
+            axis_labels=(axis_labels[0], axis_labels[1]),
+            cfg=vis_cfg,
+        )
+        print(f"saved: {out_path}")
+        if name == "2d_planar_arm_line_n2":
+            out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
+            planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
+        return
+
+    if data_dim == 3:
+        out_path = os.path.join(outdir, f"{name}_on_eikonal_zero_surfaces_3d.png")
+        _plot_zero_surfaces_3d(
+            model=model,
+            x_train=x_train,
+            traj=traj,
+            out_path=out_path,
+            title=f"{name}: on-loss + eikonal",
+            axis_labels=(axis_labels[0], axis_labels[1], axis_labels[2]),
+            cfg=vis_cfg,
+            intersection_points=eval_artifacts.get("proj", None),
+        )
+        print(f"saved: {out_path}")
+    else:
+        out_path = os.path.join(outdir, f"{name}_on_eikonal_pca_traj.png")
+        _plot_highdim_pca(
+            x_train=x_train,
+            traj=traj,
+            out_path=out_path,
+            title=f"{name}: on-loss + eikonal",
+        )
+        print(f"saved: {out_path}")
+    if name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "4d_spatial_arm_plane_n4", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
+        planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
+    if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        out_dist = os.path.join(outdir, f"{name}_on_eikonal_proj_value_distribution.png")
+        _plot_projection_value_distribution(
+            model,
+            x_train,
+            vis_cfg,
+            out_dist,
+            use_pybullet_n6=(name == "6d_spatial_arm_up_n6"),
+        )
+    # Keep pybullet render as the very last step after all figures are saved.
+    if name == "6d_spatial_arm_up_n6" and bool(cfg.plan_pybullet_render) and len(planned_paths) > 0:
+        _render_ur5_pybullet_trajectories(planned_paths, cfg)
+
+
+def main() -> None:
+    interactive_checked = False
+    interactive_ok = False
+    for name in DEFAULT_DATASETS:
+        cfg = build_cfg(str(name), profile=ACTIVE_PROFILE)
+        cfg.device = _choose_device(str(cfg.device))
+        if bool(cfg.show_3d_plot):
+            if not interactive_checked:
+                interactive_ok = _enable_interactive_backend_if_possible()
+                interactive_checked = True
+            if not interactive_ok:
+                print("[warn] interactive matplotlib backend unavailable; disable show_3d_plot")
+                cfg.show_3d_plot = False
+        if cfg.device == "cuda":
+            torch.backends.cudnn.benchmark = True
+            torch.set_float32_matmul_precision("high")
+        print(f"[cfg] dataset={name}, profile={ACTIVE_PROFILE}, n_train={cfg.n_train}, epochs={cfg.epochs}")
+        run_dataset(str(name), cfg, DEFAULT_OUTDIR)
+
+
+if __name__ == "__main__":
+    main()
