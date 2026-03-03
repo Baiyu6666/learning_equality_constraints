@@ -27,6 +27,7 @@ EVAL_METHOD_OVERRIDES: dict[str, dict[str, Any]] = {
     "vector_eikonal": {},
     "margin": {},
     "delta": {},
+    "vae": {},
 }
 EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     # Keep explicit keys as templates; defaults are currently identical to DEFAULT_EVAL_CFG.
@@ -39,7 +40,6 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "2d_looped_spiro": {},
     "2d_sharp_star": {},
     "2d_hetero_noise": {},
-    "2d_hairpin": {},
     "2d_planar_arm_line_n2": {},
     "3d_saddle_surface": {},
     "3d_sphere_surface": {},
@@ -47,9 +47,9 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "3d_planar_arm_line_n3": {},
     "3d_spatial_arm_plane_n3": {},
     "3d_spatial_arm_circle_n3": {},
-    "4d_spatial_arm_plane_n4": {},
     "6d_spatial_arm_up_n6": {},
     "6d_spatial_arm_up_n6_py": {},
+    "6d_workspace_sine_surface_pose": {},
 }
 
 
@@ -78,6 +78,11 @@ def resolve_gt_grid(
     cache_key = (
         str(dataset_name),
         int(getattr(cfg_ds, "n_grid", 4096)),
+        int(getattr(cfg_ds, "seed", 0)),
+        float(getattr(cfg_ds, "z_amp1", 0.35)),
+        float(getattr(cfg_ds, "z_amp2", 0.20)),
+        float(getattr(cfg_ds, "z_freq1", 1.5)),
+        float(getattr(cfg_ds, "z_freq2", 1.2)),
     )
     if cache_key in _GT_GRID_CACHE:
         return _GT_GRID_CACHE[cache_key]
@@ -94,7 +99,7 @@ def resolve_gt_grid(
         base = name[len("3d_vz_"):]
         x2, grid2 = generate_dataset(base, cfg_ds)
         src = grid2 if grid2 is not None else x2
-        out = lift_xy_to_3d_var(src).astype(np.float32)
+        out = lift_xy_to_3d_var(src, cfg_ds).astype(np.float32)
         _GT_GRID_CACHE[cache_key] = out
         return out
     try:

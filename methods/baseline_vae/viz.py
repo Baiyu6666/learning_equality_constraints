@@ -17,6 +17,8 @@ def visualize_all(
     max_arrows_2d=30,
     max_arrows_3d=30,
     arrow_color="tab:gray",
+    save_path: str | None = None,
+    show: bool = True,
 ):
     """
     2x3 layout:
@@ -200,7 +202,12 @@ def visualize_all(
 
     fig.suptitle(f"Dataset: {ds.name} | dim={ds.dim} | latent_dim={latent_dim}", fontsize=14)
     plt.tight_layout()
-    plt.show()
+    if save_path:
+        fig.savefig(save_path, dpi=180, bbox_inches="tight")
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)
 
 
 def plot_conditional_decodes(
@@ -294,7 +301,14 @@ def plot_conditional_decodes(
         plt.show()
 
 
-def plot_planner_grid(ds, x_train: np.ndarray, cases, title_prefix: str = "Planner") -> None:
+def plot_planner_grid(
+    ds,
+    x_train: np.ndarray,
+    cases,
+    title_prefix: str = "Planner",
+    save_path: str | None = None,
+    show: bool = True,
+) -> None:
     row_order = [k for k in ["projected", "latent", "linear_projected"] if k in cases]
     if not row_order:
         return
@@ -356,4 +370,9 @@ def plot_planner_grid(ds, x_train: np.ndarray, cases, title_prefix: str = "Plann
 
     fig.suptitle(f"{title_prefix} | Dataset: {ds.name}", fontsize=14)
     plt.tight_layout()
-    plt.show()
+    if save_path:
+        fig.savefig(save_path, dpi=180, bbox_inches="tight")
+    if show:
+        plt.show()
+    else:
+        plt.close(fig)

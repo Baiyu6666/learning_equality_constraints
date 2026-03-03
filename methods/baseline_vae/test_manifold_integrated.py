@@ -31,7 +31,7 @@ import argparse
 import numpy as np
 import torch
 
-from datasets.vae_datasets import build_datasets
+from datasets.constraint_datasets import build_datasets
 from methods.baseline_vae.evaluate import estimate_threshold, eval_with_threshold
 from methods.baseline_vae.models import AutoEncoder, VAE
 from methods.baseline_vae.planner import build_planner_cases

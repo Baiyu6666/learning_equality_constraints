@@ -1,7 +1,0 @@
-=== Evaluation Metrics (per dataset) ===
-margin   2d_sharp_star  pred_on_mean_v=0.3964 proj_manifold_dist=0.3013 proj_v_residual=0.8653 proj_true_dist=0.4481 proj_steps=29.23 pred_recall=0.8310 pred_FPrate=0.2123 chamfer=0.4210
-delta    2d_sharp_star  pred_on_mean_v=0.0072 proj_manifold_dist=0.4876 proj_v_residual=0.1244 proj_true_dist=0.5287 proj_steps=37.75 pred_recall=0.8472 pred_FPrate=0.4588 chamfer=0.5407
-
-=== Evaluation Metrics (mean over datasets) ===
-margin   pred_on_mean_v=0.3964 proj_manifold_dist=0.3013 proj_v_residual=0.8653 proj_true_dist=0.4481 proj_steps=29.23 pred_recall=0.8310 pred_FPrate=0.2123 chamfer=0.4210
-delta    pred_on_mean_v=0.0072 proj_manifold_dist=0.4876 proj_v_residual=0.1244 proj_true_dist=0.5287 proj_steps=37.75 pred_recall=0.8472 pred_FPrate=0.4588 chamfer=0.5407

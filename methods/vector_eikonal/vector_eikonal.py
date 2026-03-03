@@ -3,10 +3,11 @@
 
 from __future__ import annotations
 
+import argparse
 import os
 import time
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from types import SimpleNamespace
 from typing import Any
 
@@ -22,22 +23,27 @@ from methods.vector_eikonal.plots import (
     _plot_highdim_pca,
     _plot_planar_arm_planning,
     _plot_projection_value_distribution,
+    _plot_ur5_eval_projection_workspace_orientation_3d,
+    _plot_workspace_pose_projection_error_distributions,
+    _plot_workspace_pose_orientation_3d,
     _plot_training_diagnostics,
     _plot_zero_surfaces_3d,
     _render_ur5_pybullet_trajectories,
 )
-from methods.dataset_resolve import resolve_dataset
-from methods.eval_runner import run_eval_metrics
-from methods.kinematics_utils import (
+from core.dataset_resolve import resolve_dataset
+from core.eval_runner import run_eval_metrics
+from core.kinematics import (
     is_arm_dataset as _is_arm_dataset,
+    is_workspace_pose_dataset as _is_workspace_pose_dataset,
     workspace_embed_for_eval as shared_workspace_embed_for_eval,
     wrap_np_pi as _wrap_np_pi,
+    wrap_workspace_pose_rpy_np as _wrap_workspace_pose_rpy_np,
 )
-from methods.projection_utils import (
+from core.projection import (
     project_points_with_steps_numpy,
     project_trajectory_numpy,
 )
-from methods.mlp_utils import MLP
+from core.mlp import MLP
 from methods.vector_eikonal.codim_utils import estimate_codim_local_pca
 
 # Backward-compatible symbol used by plan_on_eikonal_only.py
@@ -46,7 +52,7 @@ MLPConstraint = MLP
 DEFAULT_DATASETS = [
     # "3d_torus_surface",
 
-    "3d_planar_arm_line_n3",
+    "3d_spatial_arm_circle_n3",
     # "3d_vz_2d_sine",
     # "3d_0z_2d_ellipse"
     # "3d_spatial_arm_circle_n3",
@@ -56,7 +62,7 @@ DEFAULT_DATASETS = [
     # "6d_spatial_arm_up_n6",
 
 ]
-DEFAULT_OUTDIR = "outputs_levelset_datasets/on_eikonal_only"
+DEFAULT_OUTDIR = "outputs_unified/eikonal"
 
 @dataclass
 class DemoCfg:
@@ -81,6 +87,9 @@ class DemoCfg:
     proj_alpha: float = 0.3
     proj_steps: int = 100
     proj_min_steps: int = 30
+    projector: dict[str, Any] = field(
+        default_factory=lambda: {"alpha": 0.3, "steps": 100, "min_steps": 30}
+    )
     n_traj: int = 64
 
     constraint_dim: Any = "auto"     # Can be int or "auto".
@@ -113,7 +122,7 @@ class DemoCfg:
     plan_anim_fps: int = 6
     plan_anim_stride: int = 1
     plan_save_gif: bool = not False
-    plan_pybullet_render: bool = True
+    plan_pybullet_render: bool = False
     plan_pybullet_real_time_dt: float = 0.06
     train_log_every: int = 50
     ur5_backend: str = "analytic"  # "analytic" or "pybullet"
@@ -122,37 +131,19 @@ class DemoCfg:
 # ----------------------------------------------------------------------
 # Config layering:
 # 1) BASE_CFG = current default values (from DemoCfg)
-# 2) PROFILE_OVERRIDES = run mode (debug/fast/full)
-# 3) DATASET_OVERRIDES = per-dataset custom parameters
+# 2) DATASET_OVERRIDES = per-dataset custom parameters
 # ----------------------------------------------------------------------
-ACTIVE_PROFILE = "default"
 BASE_CFG: dict[str, Any] = asdict(DemoCfg())
-PROFILE_OVERRIDES: dict[str, dict[str, Any]] = {
-    "default": {},
-    "debug": {
-        "n_train": 16,
-        "epochs": 50,
-        "n_traj": 32,
-        "train_log_every": 20,
-    },
-    "fast": {
-        "n_train": 256,
-        "epochs": 800,
-    },
-    "full": {},
-}
 
 DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     # Examples (edit as needed):
     "6d_spatial_arm_up_n6_py": {
-        "n_train": 2048,
         "epochs": 4,#000,
         "constraint_dim": 2,
         "lr": 2e-4,
         "ur5_backend": "analytic",
     },
     "6d_spatial_arm_up_n6": {
-        "n_train": 512,
         "epochs": 3000,
         "constraint_dim": 2,
         "lr": 3e-4,
@@ -161,12 +152,8 @@ DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     },
 }
 
-def build_cfg(dataset_name: str, profile: str = ACTIVE_PROFILE) -> DemoCfg:
+def build_cfg(dataset_name: str) -> DemoCfg:
     cfg_dict = dict(BASE_CFG)
-    prof = PROFILE_OVERRIDES.get(str(profile), {})
-    if not prof and str(profile) != "default":
-        print(f"[warn] unknown profile '{profile}', fallback to base defaults")
-    cfg_dict.update(prof)
     ds_ov = DATASET_OVERRIDES.get(str(dataset_name), {})
     cfg_dict.update(ds_ov)
     return DemoCfg(**cfg_dict)
@@ -341,7 +328,8 @@ def train_on_eikonal_only(
                 g_s = ", ".join([f"|grad f{i+1}|={v:.4f}" for i, v in enumerate(g_m)])
                 lr_now = float(opt.param_groups[0]["lr"])
                 print(
-                    f"[train] ep {ep+1:4d}/{cfg.epochs} | {f_s} | {g_s} | ortho={ortho_err:.5f} | lr={lr_now:.2e}"
+                    f"[train] method=eikonal ep={ep+1:4d}/{cfg.epochs} "
+                    f"| lr={lr_now:.2e} | {f_s} | {g_s} | ortho={ortho_err:.5f}"
                 )
         if scheduler is not None:
             scheduler.step()
@@ -366,24 +354,36 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
 
     true_codim = int(ds.get("true_codim", 1))
     if str(cfg.constraint_dim).lower() == "auto":
-        est = estimate_codim_local_pca(
-            x_train,
-            periodic_joint=_is_arm_dataset(name),
-            sample_ratio=float(cfg.codim_auto_sample_ratio),
-            k_neighbors=int(cfg.codim_auto_k_neighbors),
-            const_axis_std_ratio=float(cfg.codim_auto_const_axis_std_ratio),
-            seed=int(cfg.seed) + 1000,
-        )
-        codim = int(est["estimated_codim"])
-        print(
-            f"[codim-auto] {name}: estimated={codim}, true={true_codim}, "
-            f"mode_frac={est['mode_fraction']:.3f}, k={est['k_neighbors']}, n_sample={est['n_sample']}, "
-            f"const_axes={est['n_const_axes']}, d_eff={est['d_eff']}"
-        )
-        if bool(cfg.codim_auto_strict_check) and codim != true_codim:
-            raise RuntimeError(
-                f"[codim-auto] mismatch for {name}: estimated={codim}, true={true_codim}"
+        try:
+            est = estimate_codim_local_pca(
+                x_train,
+                periodic_joint=_is_arm_dataset(name),
+                sample_ratio=float(cfg.codim_auto_sample_ratio),
+                k_neighbors=int(cfg.codim_auto_k_neighbors),
+                const_axis_std_ratio=float(cfg.codim_auto_const_axis_std_ratio),
+                seed=int(cfg.seed) + 1000,
             )
+            codim = int(est["estimated_codim"])
+            print(
+                f"[codim-auto] {name}: estimated={codim}, true={true_codim}, "
+                f"mode_frac={est['mode_fraction']:.3f}, k={est['k_neighbors']}, n_sample={est['n_sample']}, "
+                f"const_axes={est['n_const_axes']}, d_eff={est['d_eff']}"
+            )
+            if codim != true_codim:
+                print(
+                    "\033[31m"
+                    f"[warn] [codim-auto] mismatch for {name}: estimated={codim}, true={true_codim}; "
+                    "fallback to true codim for training."
+                    "\033[0m"
+                )
+                codim = int(true_codim)
+        except Exception as e:
+            print(
+                "\033[31m"
+                f"[warn] [codim-auto] failed for {name}: {e}; fallback to true codim={true_codim}."
+                "\033[0m"
+            )
+            codim = int(true_codim)
     else:
         codim = max(1, int(cfg.constraint_dim))
         if data_dim == 2 and codim != 1:
@@ -433,6 +433,13 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
         )
         post_fn = _wrap_np_pi
+    elif _is_workspace_pose_dataset(name):
+        embed_fn = lambda q, _name=name: shared_workspace_embed_for_eval(  # noqa: E731
+            _name,
+            q,
+            ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+        )
+        post_fn = _wrap_workspace_pose_rpy_np
 
     eval_metrics, eval_cfg, eval_artifacts = run_eval_metrics(
         cfg=cfg,
@@ -533,7 +540,24 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             title=f"{name}: on-loss + eikonal",
         )
         print(f"saved: {out_path}")
-    if name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "4d_spatial_arm_plane_n4", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        if name == "6d_workspace_sine_surface_pose":
+            out_pose = os.path.join(outdir, f"{name}_on_eikonal_workspace_pose_orientation.png")
+            _plot_workspace_pose_orientation_3d(
+                x_train=x_train,
+                eval_proj=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
+                out_path=out_pose,
+                title=f"{name}: projected eval poses + orientation z-axis",
+            )
+            print(f"saved: {out_pose}")
+            out_dist = os.path.join(outdir, f"{name}_on_eikonal_workspace_pose_proj_error_distributions.png")
+            _plot_workspace_pose_projection_error_distributions(
+                x_before=eval_artifacts.get("x_eval", np.zeros((0, 6), dtype=np.float32)),
+                x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
+                out_path=out_dist,
+                title=f"{name}: projection errors before/after",
+            )
+            print(f"saved: {out_dist}")
+    if name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
         out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
         planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
     if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
@@ -545,6 +569,16 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             out_dist,
             use_pybullet_n6=(name == "6d_spatial_arm_up_n6"),
         )
+        print(f"saved: {out_dist}")
+        out_ws = os.path.join(outdir, f"{name}_on_eikonal_eval_proj_workspace_orientation.png")
+        _plot_ur5_eval_projection_workspace_orientation_3d(
+            q_train=x_train,
+            q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            out_path=out_ws,
+            title=f"{name}: eval projected points in workspace + tool orientation",
+            use_pybullet_n6=(name == "6d_spatial_arm_up_n6"),
+        )
+        print(f"saved: {out_ws}")
     # Keep pybullet render as the very last step after all figures are saved.
     if name == "6d_spatial_arm_up_n6" and bool(cfg.plan_pybullet_render) and len(planned_paths) > 0:
         _render_ur5_pybullet_trajectories(planned_paths, cfg)
@@ -554,7 +588,7 @@ def main() -> None:
     interactive_checked = False
     interactive_ok = False
     for name in DEFAULT_DATASETS:
-        cfg = build_cfg(str(name), profile=ACTIVE_PROFILE)
+        cfg = build_cfg(str(name))
         cfg.device = _choose_device(str(cfg.device))
         if bool(cfg.show_3d_plot):
             if not interactive_checked:
@@ -566,9 +600,41 @@ def main() -> None:
         if cfg.device == "cuda":
             torch.backends.cudnn.benchmark = True
             torch.set_float32_matmul_precision("high")
-        print(f"[cfg] dataset={name}, profile={ACTIVE_PROFILE}, n_train={cfg.n_train}, epochs={cfg.epochs}")
+        print(f"[cfg] dataset={name}, n_train={cfg.n_train}, epochs={cfg.epochs}")
         run_dataset(str(name), cfg, DEFAULT_OUTDIR)
 
 
 if __name__ == "__main__":
-    main()
+    from common.unified_experiment import run_one as _run_one_unified
+
+    p = argparse.ArgumentParser(description="vector_eikonal direct wrapper (unified runner)")
+    p.add_argument("--dataset", default=",".join(DEFAULT_DATASETS), help="single or comma-separated datasets")
+    p.add_argument("--outdir", default=DEFAULT_OUTDIR)
+    p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--config-root", default="configs")
+    p.add_argument("--override", action="append", default=[], help="dotted key=value override")
+    p.add_argument("--legacy", action="store_true", help="run legacy in-file main() flow")
+    args = p.parse_args()
+
+    if args.legacy:
+        main()
+    else:
+        ds_list = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
+        for ds_name in ds_list:
+            print(f"[run] method=eikonal dataset={ds_name}")
+            result, loaded_paths = _run_one_unified(
+                method="eikonal",
+                dataset=ds_name,
+                out_root=str(args.outdir),
+                seed_override=args.seed,
+                config_root=str(args.config_root),
+                cli_overrides=list(args.override),
+            )
+            m = result["metrics"]
+            print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
+            print(
+                f"[done] method=eikonal dataset={ds_name} "
+                f"proj_dist={m.get('proj_manifold_dist', float('nan')):.6f} "
+                f"recall={m.get('pred_recall', float('nan')):.6f} "
+                f"FPrate={m.get('pred_FPrate', float('nan')):.6f}"
+            )

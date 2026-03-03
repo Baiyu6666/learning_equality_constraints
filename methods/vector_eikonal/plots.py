@@ -20,19 +20,20 @@ from datasets.ur5_pybullet_utils import (
     resolve_ur5_kinematics_cfg,
     resolve_ur5_render_cfg,
 )
-from methods.kinematics_utils import (
+from core.kinematics import (
     is_arm_dataset,
     planar_fk,
     spatial_fk,
     spatial_tool_axis_n6,
 )
-from methods.planner_utils import (
+from core.planner import (
     init_path_joint_spline,
     init_path_via_workspace_ik,
     pick_far_pair_workspace_planar,
     plan_path,
 )
-from methods.projection_utils import project_trajectory_numpy
+from core.projection import project_trajectory_numpy
+from common.plot_common import plot_contour_traj_2d
 
 N6_WORKSPACE_VIS_POINTS_DEFAULT = 90
 ZERO_EPS_QUANTILE_DEFAULT = float(DEFAULT_EVAL_CFG["zero_eps_quantile"])
@@ -86,49 +87,16 @@ def _plot_constraint_2d(
     axis_labels: tuple[str, str],
     cfg: Any,
 ) -> None:
-    mins, maxs = eval_bounds_from_train(x_train, cfg)
-    # For joint-space plots, keep a full angular window when possible.
-    if axis_labels[0].startswith("q") and axis_labels[1].startswith("q"):
-        mins = mins.copy()
-        maxs = maxs.copy()
-        mins[0] = min(float(mins[0]), -np.pi)
-        maxs[0] = max(float(maxs[0]), np.pi)
-        mins[1] = min(float(mins[1]), -np.pi)
-        maxs[1] = max(float(maxs[1]), np.pi)
-    xx, yy = np.meshgrid(np.linspace(float(mins[0]), float(maxs[0]), 360), np.linspace(float(mins[1]), float(maxs[1]), 360))
-    grid = np.stack([xx, yy], axis=2).reshape(-1, 2).astype(np.float32)
-    device = next(model.parameters()).device
-    with torch.no_grad():
-        fg = model(torch.from_numpy(grid).to(device))
-        if fg.dim() == 1:
-            fg = fg.unsqueeze(1)
-        f1 = fg[:, 0].detach().cpu().numpy().reshape(xx.shape)
-        h = torch.linalg.norm(fg, dim=1).detach().cpu().numpy().reshape(xx.shape)
-        fon = model(torch.from_numpy(x_train).to(device))
-        if fon.dim() == 1:
-            fon = fon.unsqueeze(1)
-        h_on = torch.linalg.norm(fon, dim=1).detach().cpu().numpy()
-    eps_q = float(getattr(cfg, "zero_eps_quantile", ZERO_EPS_QUANTILE_DEFAULT))
-    eps_h = float(np.percentile(np.abs(h_on), eps_q))
-    cap = max(float(np.percentile(h, 95)), eps_h * 1.5, 1e-6)
-
-    plt.figure(figsize=(7.6, 6.2))
-    hm = plt.contourf(xx, yy, h, levels=np.linspace(0.0, cap, 30), cmap="viridis")
-    plt.colorbar(hm, label="||F||")
-    plt.contourf(xx, yy, h, levels=[0.0, eps_h], colors=["#ffa500"], alpha=0.40)
-    plt.contour(xx, yy, f1, levels=[0.0], colors=["red"], linewidths=1.8)
-    plt.scatter(x_train[:, 0], x_train[:, 1], s=10, c="gray", alpha=0.65, zorder=3)
-    for i in range(traj.shape[1]):
-        plt.plot(traj[:, i, 0], traj[:, i, 1], "-", color="green", linewidth=1.0, alpha=0.8)
-    plt.gca().set_aspect("equal", adjustable="box")
-    plt.xlim(float(mins[0]), float(maxs[0]))
-    plt.ylim(float(mins[1]), float(maxs[1]))
-    plt.xlabel(axis_labels[0])
-    plt.ylabel(axis_labels[1])
-    plt.title(title)
-    plt.tight_layout()
-    plt.savefig(out_path, dpi=160)
-    plt.close()
+    plot_contour_traj_2d(
+        model=model,
+        x_train=x_train,
+        traj=traj,
+        out_path=out_path,
+        title=title,
+        axis_labels=axis_labels,
+        cfg=cfg,
+        line_color="green",
+    )
 
 
 def _plot_zero_surfaces_3d(
@@ -357,6 +325,266 @@ def _plot_highdim_pca(
     plt.close()
 
 
+def _rpy_zyx_to_local_z(roll: np.ndarray, pitch: np.ndarray, yaw: np.ndarray) -> np.ndarray:
+    # R = Rz(yaw) Ry(pitch) Rx(roll), local z-axis in world is R[:,2].
+    cr = np.cos(roll)
+    sr = np.sin(roll)
+    cp = np.cos(pitch)
+    sp = np.sin(pitch)
+    cy = np.cos(yaw)
+    sy = np.sin(yaw)
+    z_x = cy * sp * cr + sy * sr
+    z_y = sy * sp * cr - cy * sr
+    z_z = cp * cr
+    z = np.stack([z_x, z_y, z_z], axis=1).astype(np.float32)
+    z /= (np.linalg.norm(z, axis=1, keepdims=True) + 1e-12)
+    return z
+
+
+def _plot_workspace_pose_orientation_3d(
+    x_train: np.ndarray,
+    eval_proj: np.ndarray,
+    out_path: str,
+    title: str,
+) -> None:
+    # eval_proj expected shape (N,6): [x,y,z,roll,pitch,yaw]
+    if eval_proj is None or len(eval_proj) == 0 or eval_proj.shape[1] < 6:
+        return
+    pts = eval_proj[:, :3].astype(np.float32)
+    rpy = eval_proj[:, 3:6].astype(np.float32)
+    dirs = _rpy_zyx_to_local_z(rpy[:, 0], rpy[:, 1], rpy[:, 2])
+
+    fig = plt.figure(figsize=(8.5, 7.0))
+    ax = fig.add_subplot(111, projection="3d")
+
+    # Background wave surface for visual inspection.
+    xx, yy = np.meshgrid(np.linspace(-2.0, 2.0, 80), np.linspace(-2.0, 2.0, 80))
+    a1, a2 = 0.55, 0.35
+    fx, fy = 1.2, 1.0
+    zz = a1 * np.sin(fx * xx) + a2 * np.cos(fy * yy)
+    ax.plot_surface(xx, yy, zz, rstride=2, cstride=2, alpha=0.18, linewidth=0.0, color="#22d3ee")
+
+    train_plot = x_train[:, :3] if x_train.shape[1] >= 3 else x_train
+    if len(train_plot) > 2500:
+        idx = np.random.choice(len(train_plot), size=2500, replace=False)
+        train_plot = train_plot[idx]
+    ax.scatter(train_plot[:, 0], train_plot[:, 1], train_plot[:, 2], s=4, c="gray", alpha=0.20, label="train")
+
+    m = min(len(pts), 500)
+    if len(pts) > m:
+        idx = np.random.choice(len(pts), size=m, replace=False)
+        pts_q = pts[idx]
+        dirs_q = dirs[idx]
+    else:
+        pts_q = pts
+        dirs_q = dirs
+    ax.scatter(pts_q[:, 0], pts_q[:, 1], pts_q[:, 2], s=8, c="#ef4444", alpha=0.75, label="eval proj")
+
+    ax.quiver(
+        pts_q[:, 0],
+        pts_q[:, 1],
+        pts_q[:, 2],
+        dirs_q[:, 0],
+        dirs_q[:, 1],
+        dirs_q[:, 2],
+        length=0.20,
+        normalize=True,
+        color="#111827",
+        linewidths=0.7,
+        alpha=0.75,
+    )
+
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
+    ax.set_zlabel("z")
+    ax.set_xlim(-2.2, 2.2)
+    ax.set_ylim(-2.2, 2.2)
+    z_all = np.concatenate([pts[:, 2], zz.reshape(-1)], axis=0)
+    pad = 0.2
+    ax.set_zlim(float(np.min(z_all) - pad), float(np.max(z_all) + pad))
+    ax.view_init(elev=24, azim=-52)
+    ax.set_title(title)
+    ax.legend(loc="upper left", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
+
+
+def _workspace_surface_z_and_normal_from_xy(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # Wave surface used by 6d_workspace_sine_surface_pose.
+    a1, a2 = 0.55, 0.35
+    fx, fy = 1.2, 1.0
+    z = (a1 * np.sin(fx * x) + a2 * np.cos(fy * y)).astype(np.float32)
+    dzdx = a1 * fx * np.cos(fx * x)
+    dzdy = -a2 * fy * np.sin(fy * y)
+    n = np.stack([-dzdx, -dzdy, np.ones_like(dzdx)], axis=1).astype(np.float32)
+    n /= (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
+    return z, n
+
+
+def _plot_workspace_pose_projection_error_distributions(
+    x_before: np.ndarray,
+    x_after: np.ndarray,
+    out_path: str,
+    title: str,
+) -> None:
+    # Inputs expected shape (N,6): [x,y,z,roll,pitch,yaw].
+    if (
+        x_before is None
+        or x_after is None
+        or len(x_before) == 0
+        or len(x_after) == 0
+        or x_before.shape[1] < 6
+        or x_after.shape[1] < 6
+    ):
+        return
+
+    n = int(min(len(x_before), len(x_after)))
+    xb = x_before[:n].astype(np.float32, copy=False)
+    xa = x_after[:n].astype(np.float32, copy=False)
+    finite = np.isfinite(xb).all(axis=1) & np.isfinite(xa).all(axis=1)
+    if not np.any(finite):
+        return
+    xb = xb[finite]
+    xa = xa[finite]
+
+    zb_true, nb_true = _workspace_surface_z_and_normal_from_xy(xb[:, 0], xb[:, 1])
+    za_true, na_true = _workspace_surface_z_and_normal_from_xy(xa[:, 0], xa[:, 1])
+    pos_err_before = np.abs(xb[:, 2] - zb_true)
+    pos_err_after = np.abs(xa[:, 2] - za_true)
+
+    zb_axis = _rpy_zyx_to_local_z(xb[:, 3], xb[:, 4], xb[:, 5])
+    za_axis = _rpy_zyx_to_local_z(xa[:, 3], xa[:, 4], xa[:, 5])
+    cos_b = np.clip(np.sum(zb_axis * nb_true, axis=1), -1.0, 1.0)
+    cos_a = np.clip(np.sum(za_axis * na_true, axis=1), -1.0, 1.0)
+    ang_err_before = np.degrees(np.arccos(cos_b))
+    ang_err_after = np.degrees(np.arccos(cos_a))
+
+    pos_cap = float(np.percentile(np.concatenate([pos_err_before, pos_err_after], axis=0), 99))
+    pos_cap = max(pos_cap, 1e-4)
+    pos_bins = np.linspace(0.0, pos_cap, 50)
+
+    ang_cap = float(np.percentile(np.concatenate([ang_err_before, ang_err_after], axis=0), 99))
+    ang_cap = max(ang_cap, 1.0)
+    ang_bins = np.linspace(0.0, ang_cap, 50)
+
+    fig = plt.figure(figsize=(10.0, 4.2))
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.hist(pos_err_before, bins=pos_bins, color="#64748b", alpha=0.72, label="before")
+    ax1.hist(pos_err_after, bins=pos_bins, color="#16a34a", alpha=0.58, label="after")
+    ax1.set_xlabel("position distance to true manifold")
+    ax1.set_ylabel("count")
+    ax1.set_title("|z - z_true(x,y)|")
+    ax1.grid(alpha=0.25)
+    ax1.legend(loc="best", fontsize=8)
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.hist(ang_err_before, bins=ang_bins, color="#64748b", alpha=0.72, label="before")
+    ax2.hist(ang_err_after, bins=ang_bins, color="#16a34a", alpha=0.58, label="after")
+    ax2.set_xlabel("orientation angle error (deg)")
+    ax2.set_title("angle(local z-axis, true normal)")
+    ax2.grid(alpha=0.25)
+    ax2.legend(loc="best", fontsize=8)
+
+    fig.suptitle(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
+
+    print(
+        "[workspace_pose_err] "
+        f"pos_mean: {float(np.mean(pos_err_before)):.5f}->{float(np.mean(pos_err_after)):.5f}, "
+        f"ang_mean_deg: {float(np.mean(ang_err_before)):.3f}->{float(np.mean(ang_err_after)):.3f}"
+    )
+    print(f"saved: {out_path}")
+
+
+def _plot_ur5_eval_projection_workspace_orientation_3d(
+    q_train: np.ndarray,
+    q_eval_proj: np.ndarray,
+    out_path: str,
+    title: str,
+    use_pybullet_n6: bool,
+) -> None:
+    if q_eval_proj is None or len(q_eval_proj) == 0 or q_eval_proj.shape[1] < 6:
+        return
+
+    def _ee_and_dir(q: np.ndarray, use_pybullet: bool) -> tuple[np.ndarray, np.ndarray]:
+        joints = spatial_fk(q.astype(np.float32), list(UR5_LINK_LENGTHS), use_pybullet_n6=use_pybullet)
+        ee = joints[:, -1, :].astype(np.float32)
+        d = spatial_tool_axis_n6(q.astype(np.float32), use_pybullet=use_pybullet).astype(np.float32)
+        return ee, d
+
+    qtr = q_train.astype(np.float32)
+    qpr = q_eval_proj.astype(np.float32)
+
+    try:
+        tr_pos, tr_dir = _ee_and_dir(qtr, use_pybullet=bool(use_pybullet_n6))
+        pr_pos, pr_dir = _ee_and_dir(qpr, use_pybullet=bool(use_pybullet_n6))
+    except Exception as e:
+        # Keep visualization available even when pybullet backend is unavailable in headless env.
+        print(f"[warn] UR5 workspace vis fallback to analytic kinematics: {e}")
+        tr_pos, tr_dir = _ee_and_dir(qtr, use_pybullet=False)
+        pr_pos, pr_dir = _ee_and_dir(qpr, use_pybullet=False)
+
+    if len(tr_pos) > 1400:
+        idx = np.random.choice(len(tr_pos), size=1400, replace=False)
+        tr_pos = tr_pos[idx]
+        tr_dir = tr_dir[idx]
+    if len(pr_pos) > 900:
+        idx = np.random.choice(len(pr_pos), size=900, replace=False)
+        pr_pos = pr_pos[idx]
+        pr_dir = pr_dir[idx]
+
+    fig = plt.figure(figsize=(10.4, 4.8))
+    ax1 = fig.add_subplot(1, 2, 1, projection="3d")
+    ax2 = fig.add_subplot(1, 2, 2, projection="3d")
+
+    ax1.scatter(tr_pos[:, 0], tr_pos[:, 1], tr_pos[:, 2], s=4, c="#9ca3af", alpha=0.20, label="train workspace")
+    ax1.scatter(pr_pos[:, 0], pr_pos[:, 1], pr_pos[:, 2], s=8, c="#ef4444", alpha=0.72, label="eval proj workspace")
+    qstep = max(1, len(pr_pos) // 90)
+    qidx = np.arange(0, len(pr_pos), qstep, dtype=int)
+    if len(qidx) > 0 and qidx[-1] != len(pr_pos) - 1:
+        qidx = np.concatenate([qidx, np.array([len(pr_pos) - 1], dtype=int)])
+    if len(qidx) > 0:
+        ax1.quiver(
+            pr_pos[qidx, 0], pr_pos[qidx, 1], pr_pos[qidx, 2],
+            pr_dir[qidx, 0], pr_dir[qidx, 1], pr_dir[qidx, 2],
+            length=0.18, normalize=True, color="#111827", linewidths=0.7, alpha=0.75
+        )
+    all_pos = np.concatenate([tr_pos, pr_pos], axis=0)
+    mins = np.min(all_pos, axis=0)
+    maxs = np.max(all_pos, axis=0)
+    ctr = 0.5 * (mins + maxs)
+    half = 0.55 * float(max(np.max(maxs - mins), 1e-3))
+    ax1.set_xlim(float(ctr[0] - half), float(ctr[0] + half))
+    ax1.set_ylim(float(ctr[1] - half), float(ctr[1] + half))
+    ax1.set_zlim(float(ctr[2] - half), float(ctr[2] + half))
+    ax1.set_xlabel("x")
+    ax1.set_ylabel("y")
+    ax1.set_zlabel("z")
+    ax1.set_title("Workspace Position + Tool Axis")
+    ax1.legend(loc="best", fontsize=8)
+
+    up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    ax2.scatter(tr_dir[:, 0], tr_dir[:, 1], tr_dir[:, 2], s=5, c="#9ca3af", alpha=0.22, label="train tool axis")
+    ax2.scatter(pr_dir[:, 0], pr_dir[:, 1], pr_dir[:, 2], s=8, c="#ef4444", alpha=0.75, label="eval proj tool axis")
+    ax2.quiver([0.0], [0.0], [0.0], [up[0]], [up[1]], [up[2]], color="#16a34a", linewidths=2.0, length=1.0)
+    ax2.set_xlim(-1.05, 1.05)
+    ax2.set_ylim(-1.05, 1.05)
+    ax2.set_zlim(-1.05, 1.05)
+    ax2.set_xlabel("dx")
+    ax2.set_ylabel("dy")
+    ax2.set_zlabel("dz")
+    ax2.set_title("Tool Axis on Unit Sphere")
+    ax2.legend(loc="best", fontsize=8)
+
+    fig.suptitle(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
+
+
 def _plot_planar_arm_planning(
     model: nn.Module,
     name: str,
@@ -380,9 +608,9 @@ def _plot_planar_arm_planning(
         y_line = 0.35  # here means z-plane value
         is_spatial = True
         use_pybullet_n6 = False
-    elif name == "4d_spatial_arm_plane_n4":
-        lengths = [1.0, 0.8, 0.6]
-        y_line = 0.35  # here means z-plane value
+    elif name == "3d_spatial_arm_circle_n3":
+        lengths = [1.0, 0.8]
+        y_line = None
         is_spatial = True
         use_pybullet_n6 = False
     elif name == "6d_spatial_arm_up_n6":
@@ -887,6 +1115,70 @@ def _plot_projection_value_distribution(
     fig.savefig(out_path, dpi=180)
     print(
         f"[proj_err] before mean={float(np.mean(ang0)):.3f} deg, after mean={float(np.mean(ang1)):.3f} deg"
+    )
+    print(f"saved: {out_path}")
+
+
+def _plot_ur5_projection_error_distribution_from_pairs(
+    q_eval: np.ndarray,
+    q_eval_proj: np.ndarray,
+    out_path: str,
+    title: str,
+    use_pybullet_n6: bool,
+) -> None:
+    # Compare orientation angle to +z before/after projection using matched eval pairs.
+    if (
+        q_eval is None
+        or q_eval_proj is None
+        or len(q_eval) == 0
+        or len(q_eval_proj) == 0
+        or q_eval.shape[1] < 6
+        or q_eval_proj.shape[1] < 6
+    ):
+        return
+
+    n = int(min(len(q_eval), len(q_eval_proj)))
+    qb = q_eval[:n].astype(np.float32, copy=False)
+    qa = q_eval_proj[:n].astype(np.float32, copy=False)
+    finite = np.isfinite(qb).all(axis=1) & np.isfinite(qa).all(axis=1)
+    if not np.any(finite):
+        return
+    qb = qb[finite]
+    qa = qa[finite]
+
+    up = np.array([0.0, 0.0, 1.0], dtype=np.float32)
+    ab = spatial_tool_axis_n6(qb, use_pybullet=use_pybullet_n6)
+    aa = spatial_tool_axis_n6(qa, use_pybullet=use_pybullet_n6)
+    cb = np.clip(np.sum(ab * up.reshape(1, 3), axis=1), -1.0, 1.0)
+    ca = np.clip(np.sum(aa * up.reshape(1, 3), axis=1), -1.0, 1.0)
+    ang_before = np.degrees(np.arccos(cb))
+    ang_after = np.degrees(np.arccos(ca))
+
+    cap = float(np.percentile(np.concatenate([ang_before, ang_after], axis=0), 99))
+    cap = max(cap, 1.0)
+    bins = np.linspace(0.0, cap, 50)
+
+    fig = plt.figure(figsize=(9.2, 4.2))
+    ax1 = fig.add_subplot(1, 2, 1)
+    ax1.hist(ang_before, bins=bins, color="#64748b", alpha=0.9)
+    ax1.set_title("before projection")
+    ax1.set_xlabel("orientation error (deg)")
+    ax1.set_ylabel("count")
+    ax1.grid(alpha=0.25)
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    ax2.hist(ang_after, bins=bins, color="#16a34a", alpha=0.9)
+    ax2.set_title("after projection")
+    ax2.set_xlabel("orientation error (deg)")
+    ax2.grid(alpha=0.25)
+
+    fig.suptitle(title)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
+    print(
+        f"[ur5_proj_err] before mean={float(np.mean(ang_before)):.3f} deg, "
+        f"after mean={float(np.mean(ang_after)):.3f} deg"
     )
     print(f"saved: {out_path}")
 

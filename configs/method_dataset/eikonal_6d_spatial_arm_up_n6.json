@@ -1,0 +1,9 @@
+{
+  "epochs": 1600,
+  "lr": 0.0003,
+  "projector": {
+    "steps": 120,
+    "min_steps": 30
+  },
+  "codim_auto_k_neighbors": 16
+}

@@ -1,0 +1,24 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  seed:
+    values: [173]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - delta
+  - --datasets
+  - 6d_spatial_arm_up_n6,6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/delta_all_6d
+  - --method-tag-prefix
+  - method

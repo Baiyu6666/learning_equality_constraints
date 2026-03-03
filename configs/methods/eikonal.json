@@ -1,0 +1,25 @@
+{
+  "device": "auto",
+  "hidden": 128,
+  "depth": 3,
+  "lr": 0.0002,
+  "epochs": 1200,
+  "batch_size": 128,
+  "lam_eikonal": 0.25,
+  "lam_eikonal_ortho": 1.0,
+  "eikonal_near_ratio": 0.85,
+  "eikonal_near_std_ratio": 0.05,
+  "train_sample_pad_ratio": 0.6,
+  "train_min_axis_span_ratio": 0.08,
+  "constraint_dim": "auto",
+  "codim_auto_sample_ratio": 0.2,
+  "codim_auto_k_neighbors": 5,
+  "codim_auto_const_axis_std_ratio": 0.001,
+  "codim_auto_strict_check": true,
+  "projector": {
+    "alpha": 0.3,
+    "steps": 80,
+    "min_steps": 20
+  },
+  "train_log_every": 50
+}

@@ -7,7 +7,6 @@ import os
 import torch
 
 from methods.vector_eikonal.vector_eikonal import (
-    ACTIVE_PROFILE,
     DEFAULT_DATASETS,
     DEFAULT_OUTDIR,
     MLPConstraint,
@@ -17,6 +16,8 @@ from methods.vector_eikonal.vector_eikonal import (
     _resolve_dataset,
     build_cfg,
 )
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 # ----------------------------------------------------------------------
 # Planner-only overrides (applied on top of demo cfg/checkpoint cfg)
@@ -64,7 +65,7 @@ def apply_planner_overrides(cfg, dataset_name: str) -> None:
 
 
 def run_planning_only(name: str) -> None:
-    cfg = build_cfg(name, profile=ACTIVE_PROFILE)
+    cfg = build_cfg(name)
     apply_planner_overrides(cfg, name)
     cfg.device = _choose_device(str(cfg.device))
     if bool(cfg.show_3d_plot):
@@ -79,7 +80,8 @@ def run_planning_only(name: str) -> None:
         f"init={cfg.plan_init_mode}"
     )
 
-    ckpt_path = os.path.join(DEFAULT_OUTDIR, f"{name}_on_eikonal_model.pt")
+    outdir = DEFAULT_OUTDIR if os.path.isabs(DEFAULT_OUTDIR) else os.path.join(_PROJECT_ROOT, DEFAULT_OUTDIR)
+    ckpt_path = os.path.join(outdir, f"{name}_on_eikonal_model.pt")
     if not os.path.exists(ckpt_path):
         raise FileNotFoundError(f"checkpoint not found: {ckpt_path}")
     ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
@@ -98,7 +100,7 @@ def run_planning_only(name: str) -> None:
         ds = _resolve_dataset(name, cfg)
         x_train = ds["x_train"]
 
-    out_plan = os.path.join(DEFAULT_OUTDIR, f"{name}_on_eikonal_planning_demo_replan.png")
+    out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo_replan.png")
     _plot_planar_arm_planning(
         model,
         name,
@@ -112,7 +114,7 @@ def run_planning_only(name: str) -> None:
 
 def main() -> None:
     for name in DEFAULT_DATASETS:
-        print(f"[plan] dataset={name}, profile={ACTIVE_PROFILE}")
+        print(f"[plan] dataset={name}")
         run_planning_only(str(name))
 
 

@@ -1,0 +1,24 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  seed:
+    values: [173]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - delta
+  - --datasets
+  - 3d_0z_2d_discontinuous,3d_0z_2d_ellipse,3d_0z_2d_figure_eight,3d_0z_2d_hetero_noise,3d_0z_2d_looped_spiro,3d_0z_2d_noisy_sine,3d_0z_2d_planar_arm_line_n2,3d_0z_2d_sharp_star,3d_0z_2d_sine,3d_0z_2d_sparse_sine,3d_0z_2d_square,3d_paraboloid,3d_planar_arm_line_n3,3d_saddle_surface,3d_spatial_arm_circle_n3,3d_spatial_arm_plane_n3,3d_sphere_surface,3d_spiral,3d_torus_surface,3d_twosphere,3d_vz_2d_discontinuous,3d_vz_2d_ellipse,3d_vz_2d_figure_eight,3d_vz_2d_hetero_noise,3d_vz_2d_looped_spiro,3d_vz_2d_noisy_sine,3d_vz_2d_planar_arm_line_n2,3d_vz_2d_sharp_star,3d_vz_2d_sine,3d_vz_2d_sparse_sine,3d_vz_2d_square
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/delta_all_3d
+  - --method-tag-prefix
+  - method

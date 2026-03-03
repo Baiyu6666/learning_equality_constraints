@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Tuple
+from dataclasses import dataclass
+from typing import Callable, Dict, Tuple
 
 import numpy as np
 import torch
@@ -16,6 +17,18 @@ LIFT_3D_VZ_DEFAULTS = {
     "z_freq1": 1.5,
     "z_freq2": 1.2,
 }
+
+
+@dataclass
+class DatasetSpec:
+    name: str
+    dim: int
+    latent_dim_default: int
+    train_on_sampler: Callable[[int, np.random.Generator], np.ndarray]
+    eval_on_sampler: Callable[[int, np.random.Generator], np.ndarray]
+    eval_off_sampler: Callable[[int, np.random.Generator], np.ndarray]
+    gt_distance_fn: Callable[[np.ndarray], np.ndarray]
+    plot_bounds: Tuple[np.ndarray, np.ndarray]
 
 
 def get_lift_3d_vz_params(cfg=None) -> dict[str, float]:
@@ -48,6 +61,217 @@ def set_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
+
+
+def sample_spiral_on(n: int, rng: np.random.Generator) -> np.ndarray:
+    theta = rng.uniform(0.0, 4.0 * np.pi, size=n)
+    a = 0.25
+    x = np.cos(theta)
+    y = np.sin(theta)
+    z = a * theta - 2.0
+    return np.stack([x, y, z], axis=1).astype(np.float32)
+
+
+def sample_spiral_off(n: int, rng: np.random.Generator) -> np.ndarray:
+    theta = rng.uniform(0.0, 4.0 * np.pi, size=n)
+    a = 0.25
+    x = np.cos(theta)
+    y = np.sin(theta)
+    z = a * theta - 2.0
+    x += rng.uniform(0.4, 1.0, size=n) * rng.choice([-1, 1], size=n)
+    y += rng.uniform(0.4, 1.0, size=n) * rng.choice([-1, 1], size=n)
+    z += rng.uniform(0.4, 1.0, size=n) * rng.choice([-1, 1], size=n)
+    return np.stack([x, y, z], axis=1).astype(np.float32)
+
+
+def sample_sphere_on(
+    n: int,
+    rng: np.random.Generator,
+    radius: float = 1.0,
+    center=(0.0, 0.0, 0.0),
+) -> np.ndarray:
+    v = rng.normal(size=(n, 3))
+    v /= (np.linalg.norm(v, axis=1, keepdims=True) + 1e-12)
+    pts = radius * v + np.array(center, dtype=float)[None, :]
+    return pts.astype(np.float32)
+
+
+def sample_paraboloid_on(
+    n: int,
+    rng: np.random.Generator,
+    xy_range: float = 1.2,
+    z_scale: float = 1.0,
+) -> np.ndarray:
+    x = rng.uniform(-xy_range, xy_range, size=n)
+    y = rng.uniform(-xy_range, xy_range, size=n)
+    z = z_scale * (x ** 2 + y ** 2)
+    return np.stack([x, y, z], axis=1).astype(np.float32)
+
+
+def sample_two_sphere_outer_on(n: int, rng: np.random.Generator) -> np.ndarray:
+    ca = np.array([-0.8, 0.0, 0.0])
+    cb = np.array([+0.8, 0.0, 0.0])
+    r = 1.0
+    m = int(n * 2.2) + 64
+    pts_a = sample_sphere_on(m, rng, radius=r, center=ca)
+    pts_b = sample_sphere_on(m, rng, radius=r, center=cb)
+    pts = np.concatenate([pts_a, pts_b], axis=0)
+    da = np.linalg.norm(pts - ca[None, :], axis=1)
+    db = np.linalg.norm(pts - cb[None, :], axis=1)
+    keep = (db >= r - 1e-6) | (da >= r - 1e-6)
+    pts = pts[keep]
+    if pts.shape[0] < n:
+        return pts.astype(np.float32)
+    idx = rng.choice(pts.shape[0], size=n, replace=False)
+    return pts[idx].astype(np.float32)
+
+
+def sample_square_on(n: int, rng: np.random.Generator, half: float = 1.0) -> np.ndarray:
+    edge = rng.integers(0, 4, size=n)
+    u = rng.uniform(-half, half, size=n)
+    x = np.empty(n)
+    y = np.empty(n)
+    m = edge == 0
+    x[m], y[m] = u[m], half
+    m = edge == 1
+    x[m], y[m] = u[m], -half
+    m = edge == 2
+    x[m], y[m] = half, u[m]
+    m = edge == 3
+    x[m], y[m] = -half, u[m]
+    return np.stack([x, y], axis=1).astype(np.float32)
+
+
+def sample_paraboloid_off(
+    n: int,
+    rng: np.random.Generator,
+    xy_range: float = 1.2,
+    z_max: float = 3.0,
+) -> np.ndarray:
+    x = rng.uniform(-xy_range, xy_range, size=n)
+    y = rng.uniform(-xy_range, xy_range, size=n)
+    z_surface = x ** 2 + y ** 2
+    sign = rng.choice([-1.0, 1.0], size=n)
+    delta = rng.uniform(0.35, 1.0, size=n)
+    z = np.clip(z_surface + sign * delta, 0.0, z_max)
+    return np.stack([x, y, z], axis=1).astype(np.float32)
+
+
+def sample_two_sphere_outer_off(n: int, rng: np.random.Generator, max_iters: int = 50) -> np.ndarray:
+    ca = np.array([-0.8, 0.0, 0.0])
+    cb = np.array([+0.8, 0.0, 0.0])
+    r = 1.0
+    lo = np.array([-2.5, -2.0, -2.0])
+    hi = np.array([+2.5, +2.0, +2.0])
+    out = []
+    for _ in range(max_iters):
+        if len(out) >= n:
+            break
+        m = int((n - len(out)) * 1.8) + 32
+        pts = rng.uniform(lo, hi, size=(m, 3))
+        da = np.linalg.norm(pts - ca[None, :], axis=1)
+        db = np.linalg.norm(pts - cb[None, :], axis=1)
+        dist_to_boundary = np.minimum(np.abs(da - r), np.abs(db - r))
+        sel = pts[dist_to_boundary > 0.25]
+        out.append(sel)
+        out = [np.concatenate(out, axis=0)[:n]]
+    if len(out) < n:
+        missing = n - len(out)
+        out.append(rng.uniform(lo, hi, size=(missing, 3)))
+        out = [np.concatenate(out, axis=0)[:n]]
+    return out[0].astype(np.float32)
+
+
+def sample_square_off(n: int, rng: np.random.Generator, half: float = 1.0, max_iters: int = 50) -> np.ndarray:
+    out = []
+    for _ in range(max_iters):
+        if len(out) >= n:
+            break
+        m = int((n - len(out)) * 1.6) + 16
+        pts = rng.uniform(-1.8 * half, 1.8 * half, size=(m, 2))
+        linf = np.maximum(np.abs(pts[:, 0]), np.abs(pts[:, 1]))
+        sel = pts[np.abs(linf - half) > 0.18 * half]
+        out.append(sel)
+        out = [np.concatenate(out, axis=0)[:n]]
+    if len(out) < n:
+        missing = n - len(out)
+        out.append(rng.uniform(-1.8 * half, 1.8 * half, size=(missing, 2)))
+        out = [np.concatenate(out, axis=0)[:n]]
+    return out[0].astype(np.float32)
+
+
+def gt_dist_spiral(points: np.ndarray, theta_samples: int = 2048) -> np.ndarray:
+    theta = np.linspace(0.0, 4.0 * np.pi, num=theta_samples, dtype=np.float32)
+    a = 0.25
+    curve = np.stack([np.cos(theta), np.sin(theta), a * theta - 2.0], axis=1).astype(np.float32)
+    d2 = np.sum((points[:, None, :] - curve[None, :, :]) ** 2, axis=2)
+    return np.sqrt(np.min(d2, axis=1))
+
+
+def gt_dist_paraboloid(points: np.ndarray) -> np.ndarray:
+    x = points[:, 0]
+    y = points[:, 1]
+    z = points[:, 2]
+    return np.abs(z - (x ** 2 + y ** 2))
+
+
+def gt_dist_two_sphere_outer(points: np.ndarray) -> np.ndarray:
+    ca = np.array([-0.8, 0.0, 0.0])
+    cb = np.array([+0.8, 0.0, 0.0])
+    r = 1.0
+    da = np.linalg.norm(points - ca[None, :], axis=1)
+    db = np.linalg.norm(points - cb[None, :], axis=1)
+    return np.minimum(np.abs(da - r), np.abs(db - r))
+
+
+def gt_dist_square(points: np.ndarray, half: float = 1.0) -> np.ndarray:
+    linf = np.maximum(np.abs(points[:, 0]), np.abs(points[:, 1]))
+    return np.abs(linf - half)
+
+
+def build_datasets() -> Dict[str, DatasetSpec]:
+    ds: Dict[str, DatasetSpec] = {}
+    ds["3d_spiral"] = DatasetSpec(
+        name="3d_spiral",
+        dim=3,
+        latent_dim_default=1,
+        train_on_sampler=lambda n, rng: sample_spiral_on(n, rng),
+        eval_on_sampler=lambda n, rng: sample_spiral_on(n, rng),
+        eval_off_sampler=lambda n, rng: sample_spiral_off(n, rng),
+        gt_distance_fn=lambda x: gt_dist_spiral(x),
+        plot_bounds=(np.array([-2.2, -2.2, -2.8]), np.array([2.2, 2.2, 2.8])),
+    )
+    ds["3d_paraboloid"] = DatasetSpec(
+        name="3d_paraboloid",
+        dim=3,
+        latent_dim_default=2,
+        train_on_sampler=lambda n, rng: sample_paraboloid_on(n, rng, xy_range=1.2, z_scale=1.0),
+        eval_on_sampler=lambda n, rng: sample_paraboloid_on(n, rng, xy_range=1.2, z_scale=1.0),
+        eval_off_sampler=lambda n, rng: sample_paraboloid_off(n, rng, xy_range=1.2, z_max=3.0),
+        gt_distance_fn=lambda x: gt_dist_paraboloid(x),
+        plot_bounds=(np.array([-1.8, -1.8, 0.0]), np.array([1.8, 1.8, 3.2])),
+    )
+    ds["3d_twosphere"] = DatasetSpec(
+        name="3d_twosphere",
+        dim=3,
+        latent_dim_default=2,
+        train_on_sampler=lambda n, rng: sample_two_sphere_outer_on(n, rng),
+        eval_on_sampler=lambda n, rng: sample_two_sphere_outer_on(n, rng),
+        eval_off_sampler=lambda n, rng: sample_two_sphere_outer_off(n, rng),
+        gt_distance_fn=lambda x: gt_dist_two_sphere_outer(x),
+        plot_bounds=(np.array([-2.8, -2.2, -2.2]), np.array([2.8, 2.2, 2.2])),
+    )
+    ds["2d_square"] = DatasetSpec(
+        name="2d_square",
+        dim=2,
+        latent_dim_default=1,
+        train_on_sampler=lambda n, rng: sample_square_on(n, rng, half=1.0),
+        eval_on_sampler=lambda n, rng: sample_square_on(n, rng, half=1.0),
+        eval_off_sampler=lambda n, rng: sample_square_off(n, rng, half=1.0),
+        gt_distance_fn=lambda x: gt_dist_square(x, half=1.0),
+        plot_bounds=(np.array([-2.3, -2.3]), np.array([2.3, 2.3])),
+    )
+    return ds
 
 
 def make_sine_manifold(n: int) -> np.ndarray:
@@ -388,7 +612,96 @@ def _spatial_arm_up_n6(cfg) -> Tuple[np.ndarray, np.ndarray]:
     return x_train, grid
 
 
+def _surface_normal_from_xy(x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    # Wave surface: z = a1*sin(fx*x) + a2*cos(fy*y)
+    a1, a2 = 0.55, 0.35
+    fx, fy = 1.2, 1.0
+    dzdx = a1 * fx * np.cos(fx * x)
+    dzdy = -a2 * fy * np.sin(fy * y)
+    n = np.stack([-dzdx, -dzdy, np.ones_like(dzdx)], axis=1).astype(np.float64)
+    n /= (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
+    return n.astype(np.float32)
+
+
+def _rpy_from_rotmat_zyx(R: np.ndarray) -> np.ndarray:
+    # R = Rz(yaw) Ry(pitch) Rx(roll)
+    sy = -R[2, 0]
+    sy = float(np.clip(sy, -1.0, 1.0))
+    pitch = math.asin(sy)
+    cp = math.cos(pitch)
+    if abs(cp) > 1e-8:
+        roll = math.atan2(R[2, 1], R[2, 2])
+        yaw = math.atan2(R[1, 0], R[0, 0])
+    else:
+        roll = 0.0
+        yaw = math.atan2(-R[0, 1], R[1, 1])
+    return np.array([roll, pitch, yaw], dtype=np.float32)
+
+
+def _workspace_sine_surface_pose_n6(cfg) -> Tuple[np.ndarray, np.ndarray]:
+    # 6D workspace pose: [x, y, z, roll, pitch, yaw]
+    # Constraints:
+    # 1) position lies on wave surface z=f(x,y)
+    # 2) orientation's local z-axis aligns with surface normal
+    # 3) free spin psi around normal remains unconstrained
+    def _sample(n: int, seed_offset: int) -> np.ndarray:
+        rng = np.random.default_rng(int(cfg.seed) + seed_offset)
+        x = rng.uniform(-2.0, 2.0, size=(n,)).astype(np.float32)
+        y = rng.uniform(-2.0, 2.0, size=(n,)).astype(np.float32)
+        a1, a2 = 0.55, 0.35
+        fx, fy = 1.2, 1.0
+        z = (a1 * np.sin(fx * x) + a2 * np.cos(fy * y)).astype(np.float32)
+
+        nvec = _surface_normal_from_xy(x, y).astype(np.float64)
+        t1 = np.stack([np.ones_like(x), np.zeros_like(x), a1 * fx * np.cos(fx * x)], axis=1).astype(np.float64)
+        t1 /= (np.linalg.norm(t1, axis=1, keepdims=True) + 1e-12)
+        t2 = np.cross(nvec, t1)
+        t2 /= (np.linalg.norm(t2, axis=1, keepdims=True) + 1e-12)
+
+        psi = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float64)
+        c = np.cos(psi)[:, None]
+        s = np.sin(psi)[:, None]
+        x_axis = c * t1 + s * t2
+        y_axis = -s * t1 + c * t2
+        z_axis = nvec
+
+        rpy = np.zeros((n, 3), dtype=np.float32)
+        for i in range(n):
+            R = np.stack([x_axis[i], y_axis[i], z_axis[i]], axis=1).astype(np.float64)
+            rpy[i] = _rpy_from_rotmat_zyx(R)
+        rpy = _wrap_to_pi(rpy.astype(np.float32))
+        return np.concatenate([x[:, None], y[:, None], z[:, None], rpy], axis=1).astype(np.float32)
+
+    x_train = _sample(max(1, int(cfg.n_train)), seed_offset=0)
+    grid = _sample(max(1, int(cfg.n_grid)), seed_offset=1)
+    return x_train, grid
+
+
 def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
+    if name == "3d_spiral":
+        rng_train = np.random.default_rng(int(cfg.seed))
+        rng_grid = np.random.default_rng(int(cfg.seed) + 1)
+        x = sample_spiral_on(int(cfg.n_train), rng_train).astype(np.float32)
+        grid = sample_spiral_on(int(cfg.n_grid), rng_grid).astype(np.float32)
+        return x, grid
+    if name == "3d_paraboloid":
+        rng_train = np.random.default_rng(int(cfg.seed))
+        rng_grid = np.random.default_rng(int(cfg.seed) + 1)
+        x = sample_paraboloid_on(int(cfg.n_train), rng_train, xy_range=1.2, z_scale=1.0).astype(np.float32)
+        grid = sample_paraboloid_on(int(cfg.n_grid), rng_grid, xy_range=1.2, z_scale=1.0).astype(np.float32)
+        return x, grid
+    if name == "3d_twosphere":
+        rng_train = np.random.default_rng(int(cfg.seed))
+        rng_grid = np.random.default_rng(int(cfg.seed) + 1)
+        x = sample_two_sphere_outer_on(int(cfg.n_train), rng_train).astype(np.float32)
+        grid = sample_two_sphere_outer_on(int(cfg.n_grid), rng_grid).astype(np.float32)
+        return x, grid
+    if name == "2d_square":
+        rng_train = np.random.default_rng(int(cfg.seed))
+        rng_grid = np.random.default_rng(int(cfg.seed) + 1)
+        x = sample_square_on(int(cfg.n_train), rng_train, half=1.0).astype(np.float32)
+        grid = sample_square_on(int(cfg.n_grid), rng_grid, half=1.0).astype(np.float32)
+        return x, grid
     if name == "2d_figure_eight":
         t = np.random.uniform(-math.pi, math.pi, size=(cfg.n_train, 1))
         x = np.concatenate([np.sin(t), np.sin(2 * t)], axis=1).astype(np.float32)
@@ -480,14 +793,13 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         return _spatial_arm_plane_n3(cfg)
     if name == "3d_spatial_arm_circle_n3":
         return _spatial_arm_circle_n3(cfg)
-    if name == "4d_spatial_arm_plane_n4":
-        return _spatial_arm_plane_n4(cfg)
     if name == "6d_spatial_arm_up_n6":
         return _spatial_arm_up_n6(cfg)
+    if name == "6d_workspace_sine_surface_pose":
+        return _workspace_sine_surface_pose_n6(cfg)
     if name == "2d_noisy_sine":
-        n_sparse = max(128, cfg.n_train // 4)
-        t = np.random.uniform(-math.pi, math.pi, size=(n_sparse, 1))
-        y = np.sin(t) + 0.1 * np.random.randn(n_sparse, 1)
+        t = np.random.uniform(-math.pi, math.pi, size=(cfg.n_train, 1))
+        y = np.sin(t) + 0.1 * np.random.randn(cfg.n_train, 1)
         x = np.concatenate([t, y], axis=1).astype(np.float32)
         tg = np.linspace(-4.0, 4.0, cfg.n_grid).reshape(-1, 1)
         grid = np.concatenate([tg, np.sin(tg)], axis=1).astype(np.float32)
@@ -552,20 +864,5 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         x = np.concatenate([t, y], axis=1).astype(np.float32)
         tg = np.linspace(-4.0, 4.0, cfg.n_grid).reshape(-1, 1)
         grid = np.concatenate([tg, np.sin(tg)], axis=1).astype(np.float32)
-        return x, grid
-    if name == "2d_hairpin":
-        t = np.random.uniform(0.0, 1.0, size=(cfg.n_train, 1))
-        x1 = 2.0 * t - 1.0
-        y1 = 0.8 * (t ** 2)
-        x2 = 1.0 - 2.0 * t
-        y2 = 0.8 * (t ** 2) + 0.15
-        choose = np.random.rand(cfg.n_train, 1) < 0.5
-        x = np.where(choose, x1, x2)
-        y = np.where(choose, y1, y2)
-        x = np.concatenate([x, y], axis=1).astype(np.float32)
-        tg = np.linspace(0.0, 1.0, cfg.n_grid).reshape(-1, 1)
-        grid1 = np.concatenate([2.0 * tg - 1.0, 0.8 * (tg ** 2)], axis=1)
-        grid2 = np.concatenate([1.0 - 2.0 * tg, 0.8 * (tg ** 2) + 0.15], axis=1)
-        grid = np.vstack([grid1, grid2]).astype(np.float32)
         return x, grid
     raise ValueError(f"unknown dataset: {name}")

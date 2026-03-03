@@ -105,14 +105,16 @@ def plot_planned_paths(
     eps = float(zero_level_eps)
     plt.contourf(xx, yy, f_grid, levels=[-eps, eps], colors=["#ffa500"], alpha=0.55)
     plt.scatter(x_train[:, 0], x_train[:, 1], s=4, alpha=0.6, label="data", zorder=3)
-    for i, traj in enumerate(plans_proj):
-        plt.plot(traj[:, 0], traj[:, 1], "-", color="gold", linewidth=2.0, label="projected (on)" if i == 0 else None)
-        plt.scatter(traj[0, 0], traj[0, 1], c="gold", s=25, zorder=4)
-        plt.scatter(traj[-1, 0], traj[-1, 1], c="gold", s=25, zorder=4)
-    for i, traj in enumerate(plans_constr):
-        plt.plot(traj[:, 0], traj[:, 1], "--", color="purple", linewidth=2.0, label="constrained (on)" if i == 0 else None)
-        plt.scatter(traj[0, 0], traj[0, 1], c="purple", s=25, zorder=4)
-        plt.scatter(traj[-1, 0], traj[-1, 1], c="purple", s=25, zorder=4)
+    cmap = plt.get_cmap("tab10")
+    all_trajs = [("projected (on)", "-", t) for t in plans_proj] + [("constrained (on)", "--", t) for t in plans_constr]
+    seen_labels: set[str] = set()
+    for i, (label, style, traj) in enumerate(all_trajs):
+        c = cmap(i % 10)
+        leg = label if label not in seen_labels else None
+        seen_labels.add(label)
+        plt.plot(traj[:, 0], traj[:, 1], style, color=c, linewidth=2.0, label=leg)
+        plt.scatter(traj[0, 0], traj[0, 1], c=[c], s=25, zorder=4)
+        plt.scatter(traj[-1, 0], traj[-1, 1], c=[c], s=25, zorder=4)
     plt.xlim(x_min, x_max)
     plt.ylim(y_min, y_max)
     plt.gca().set_aspect("equal", adjustable="box")

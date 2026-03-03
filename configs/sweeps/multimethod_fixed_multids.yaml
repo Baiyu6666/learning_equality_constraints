@@ -1,0 +1,58 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  method:
+    values: [eikonal, delta, vae]
+
+  # One trial run per seed.
+  seed:
+    values: [0, 1, 2]
+
+  # Method-fixed global params (single value means fixed).
+  m__eikonal__lr:
+    values: [1.0e-5]
+  m__eikonal__epochs:
+    values: [1200]
+  m__eikonal__lam_eikonal:
+    values: [0.25]
+  m__eikonal__lam_eikonal_ortho:
+    values: [1.0]
+
+  m__delta__lr:
+    values: [1.0e-4]
+  m__delta__epochs:
+    values: [1200]
+
+  m__vae__lr:
+    values: [1.0e-3]
+  m__vae__epochs:
+    values: [800]
+  m__vae__beta_final:
+    values: [0.05]
+
+  # Method + dataset fixed params.
+  m__eikonal__ds__3d_spiral__proj_steps:
+    values: [80]
+  m__eikonal__ds__3d_sphere_surface__proj_steps:
+    values: [100]
+  m__delta__ds__3d_spiral__proj_steps:
+    values: [60]
+  m__vae__ds__2d_sine__viz_enable:
+    values: [false]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --datasets
+  - 3d_spiral,3d_sphere_surface,2d_sine
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/multimethod_fixed_multids
+  - --method-tag-prefix
+  - method

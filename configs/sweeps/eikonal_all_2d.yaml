@@ -1,0 +1,25 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  seed:
+    values: [173]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - eikonal
+  - --datasets
+  - 2d_planar_arm_line_n2
+#  - 2d_discontinuous,2d_ellipse,2d_figure_eight,2d_hetero_noise,2d_looped_spiro,2d_noisy_sine,2d_planar_arm_line_n2,2d_sharp_star,2d_sine,2d_sparse_sine,2d_square
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/eikonal_all_2d
+  - --method-tag-prefix
+  - method

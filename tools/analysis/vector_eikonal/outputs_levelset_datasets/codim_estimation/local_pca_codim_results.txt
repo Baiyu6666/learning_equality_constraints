@@ -1,0 +1,4 @@
+Local-PCA eigengap codim estimation
+datasets=1, sample_ratio=0.02, k_neighbors=5
+
+3d_spiral: d=3, codim=2, mode_fraction=0.875, hist={'1': 2, '2': 14}

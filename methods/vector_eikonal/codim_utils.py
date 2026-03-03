@@ -4,7 +4,7 @@ from typing import Any
 
 import numpy as np
 
-from methods.kinematics_utils import wrap_np_pi as _wrap_np_pi
+from core.kinematics import wrap_np_pi as _wrap_np_pi
 
 
 def _local_neighbors(x: np.ndarray, idx: int, k: int, periodic_joint: bool) -> np.ndarray:
@@ -110,4 +110,3 @@ def estimate_codim_local_pca(
         "d_eff": d_eff,
         "std_tol": float(std_tol),
     }
-

@@ -1,0 +1,17 @@
+{
+  "seed": 36,
+  "device": "auto",
+  "n_grid": 4096,
+  "latent_dim": -1,
+  "hidden_dims": [64, 32],
+  "epochs": 500,
+  "batch_size": 128,
+  "lr": 0.001,
+  "weight_decay": 0.0,
+  "beta_final": 0.05,
+  "warmup_epochs": 440,
+  "ur5_backend": "analytic",
+  "viz_enable": true,
+  "viz_sample_latent_n": 150,
+  "viz_max_eval_points": 2000
+}

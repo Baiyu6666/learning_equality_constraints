@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import math
 import os
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from types import SimpleNamespace
 from typing import Dict, List, Tuple
 
@@ -19,9 +20,9 @@ from evaluator.evaluator import (
     resolve_eval_cfg,
     sample_eval_seed_points,
 )
-from methods.dataset_resolve import resolve_dataset
-from methods.eval_runner import run_eval_metrics
-from methods.kinematics_utils import (
+from core.dataset_resolve import resolve_dataset
+from core.eval_runner import run_eval_metrics
+from core.kinematics import (
     is_arm_dataset as _is_arm_dataset,
     planar_fk as _planar_fk,
     spatial_fk_n3 as _spatial_fk_n3,
@@ -29,13 +30,13 @@ from methods.kinematics_utils import (
     workspace_embed_for_eval as shared_workspace_embed_for_eval,
     wrap_np_pi as _wrap_np_pi,
 )
-from methods.projection_utils import (
+from core.projection import (
     project_points_with_steps_numpy,
     project_trajectory_numpy,
     project_trajectory_tensor,
 )
-from methods.mlp_utils import MLP
-from methods.planner_utils import plan_path
+from core.mlp import MLP
+from core.planner import plan_path
 from methods.baseline_udf.plots import (
     plot_contour_and_trajectory,
     plot_contour_only,
@@ -57,7 +58,7 @@ class Config:
     seed: int = 721  # random seed
     device: str = "auto"  # "auto", "cpu", or "cuda"
 
-    n_train: int = 256  # training points per dataset
+    n_train: int = 512  # training points per dataset (dataset-layer config should override)
     n_grid: int = 4096  # grid points for GT manifold
 
     # KNN sizes
@@ -100,6 +101,7 @@ class Config:
     lr_decay_step: int = 0  # <=0 disables LR decay
     lr_decay_gamma: float = 1.0  # multiplicative decay factor
     epochs: int = 2000  # training epochs
+    train_log_every: int = 50  # logging interval (epochs)
     batch_size: int = 128  # batch size
     baseline_margin_target: float = 1.0  # target |h(x_off)| for margin baseline
     lam_on: float = 1.0  # on-manifold penalty weight
@@ -113,6 +115,7 @@ class Config:
     proj_alpha: float = 0.3  # projection step size
     proj_steps: int = 100  # projection iterations
     proj_min_steps: int = 30  # minimum projection iterations before early-stop
+    projector: dict = field(default_factory=lambda: {"alpha": 0.3, "steps": 100, "min_steps": 30})
 
     wandb_enable: bool = False  # enable wandb
     wandb_project: str = "equality constraint learning"  # wandb project
@@ -614,9 +617,15 @@ def train_baseline(
         if last_stats:
             for k in history:
                 history[k].append(last_stats[k])
-        if (epoch + 1) % 500 == 0:
+        if ((epoch + 1) % max(1, int(cfg.train_log_every))) == 0 or epoch == 0 or (epoch + 1) == int(cfg.epochs):
             lr_now = float(opt.param_groups[0]["lr"])
-            print(f"[{mode}] epoch {epoch+1:04d}  loss={last_stats['loss_total']:.6f}  lr={lr_now:.2e}")
+            print(
+                f"[train] method={mode} ep={epoch+1:4d}/{cfg.epochs} "
+                f"| lr={lr_now:.2e} "
+                f"| loss={last_stats['loss_total']:.6f} "
+                f"| on={last_stats['loss_on']:.6f} "
+                f"| off={last_stats['loss_off']:.6f}"
+            )
         if scheduler is not None:
             scheduler.step()
 
@@ -1031,19 +1040,28 @@ def main() -> None:
         print("\n=== Evaluation Metrics (per dataset) ===")
         for entry in eval_results:
             m = entry["metrics"]
-            line = (
-                f"{entry['method']:<8} {entry['dataset']:<14} "
-                f"pred_on_mean_v={m['pred_on_mean_v']:.4f} "
-                f"proj_manifold_dist={m['proj_manifold_dist']:.4f} "
-                f"proj_v_residual={m['proj_v_residual']:.4f} "
-                f"proj_true_dist={m['proj_true_dist']:.4f} "
-                f"proj_steps={m['proj_steps']:.2f} "
-                f"pred_recall={m['pred_recall']:.4f} "
-                f"pred_FPrate={m['pred_FPrate']:.4f} "
-                f"chamfer={m['bidirectional_chamfer']:.4f}"
+            line1 = (
+                f"[eval] {entry['dataset']} | method={entry['method']} "
+                f"| proj_dist={m['proj_manifold_dist']:.6f} "
+                f"| pred_recall={m['pred_recall']:.6f} "
+                f"| pred_FPrate={m['pred_FPrate']:.6f} "
+                f"| chamfer={m['bidirectional_chamfer']:.6f} "
+                f"| gt->learned={m['gt_to_learned_mean']:.6f} "
+                f"| learned->gt={m['learned_to_gt_mean']:.6f} "
+                f"| space={m.get('dist_space', 'unknown')}"
             )
-            lines.append(line)
-            print(line)
+            line2 = (
+                f"[eval] {entry['dataset']} | method={entry['method']} "
+                f"| proj_steps={m['proj_steps']:.2f} "
+                f"| proj_true_dist={m['proj_true_dist']:.6f} "
+                f"| proj_v_residual={m['proj_v_residual']:.6f} "
+                f"| eval_eps={m['eval_eps_used']:.6f} "
+                f"| pred_precision={m['pred_precision']:.6f}"
+            )
+            lines.append(line1)
+            lines.append(line2)
+            print(line1)
+            print(line2)
         lines.append("")
         lines.append("=== Evaluation Metrics (mean over datasets) ===")
         print("\n=== Evaluation Metrics (mean over datasets) ===")
@@ -1056,19 +1074,27 @@ def main() -> None:
                 if isinstance(v, (int, float, np.floating)):
                     num_keys.append(k)
             avg = {k: float(np.mean([float(it[k]) for it in items])) for k in num_keys}
-            line = (
-                f"{method:<8} "
-                f"pred_on_mean_v={avg['pred_on_mean_v']:.4f} "
-                f"proj_manifold_dist={avg['proj_manifold_dist']:.4f} "
-                f"proj_v_residual={avg['proj_v_residual']:.4f} "
-                f"proj_true_dist={avg['proj_true_dist']:.4f} "
-                f"proj_steps={avg['proj_steps']:.2f} "
-                f"pred_recall={avg['pred_recall']:.4f} "
-                f"pred_FPrate={avg['pred_FPrate']:.4f} "
-                f"chamfer={avg['bidirectional_chamfer']:.4f}"
+            line1 = (
+                f"[eval-avg] method={method} "
+                f"| proj_dist={avg['proj_manifold_dist']:.6f} "
+                f"| pred_recall={avg['pred_recall']:.6f} "
+                f"| pred_FPrate={avg['pred_FPrate']:.6f} "
+                f"| chamfer={avg['bidirectional_chamfer']:.6f} "
+                f"| gt->learned={avg['gt_to_learned_mean']:.6f} "
+                f"| learned->gt={avg['learned_to_gt_mean']:.6f}"
             )
-            lines.append(line)
-            print(line)
+            line2 = (
+                f"[eval-avg] method={method} "
+                f"| proj_steps={avg['proj_steps']:.2f} "
+                f"| proj_true_dist={avg['proj_true_dist']:.6f} "
+                f"| proj_v_residual={avg['proj_v_residual']:.6f} "
+                f"| eval_eps={avg['eval_eps_used']:.6f} "
+                f"| pred_precision={avg['pred_precision']:.6f}"
+            )
+            lines.append(line1)
+            lines.append(line2)
+            print(line1)
+            print(line2)
             if wb_run is not None:
                 wb_step += 1
                 wandb.log(
@@ -1081,4 +1107,39 @@ def main() -> None:
         wb_run.finish()
 
 if __name__ == "__main__":
-    main()
+    from common.unified_experiment import run_one as _run_one_unified
+
+    p = argparse.ArgumentParser(description="baseline_udf direct wrapper (unified runner)")
+    p.add_argument("--method", default="margin,delta", help="margin|delta or comma-separated")
+    p.add_argument("--dataset", default="2d_sharp_star", help="single or comma-separated datasets")
+    p.add_argument("--outdir", default="outputs_unified")
+    p.add_argument("--seed", type=int, default=None)
+    p.add_argument("--config-root", default="configs")
+    p.add_argument("--override", action="append", default=[], help="dotted key=value override")
+    p.add_argument("--legacy", action="store_true", help="run legacy in-file main() flow")
+    args = p.parse_args()
+
+    if args.legacy:
+        main()
+    else:
+        methods = [m.strip() for m in str(args.method).split(",") if m.strip()]
+        datasets = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
+        for m in methods:
+            for ds_name in datasets:
+                print(f"[run] method={m} dataset={ds_name}")
+                result, loaded_paths = _run_one_unified(
+                    method=m,
+                    dataset=ds_name,
+                    out_root=str(args.outdir),
+                    seed_override=args.seed,
+                    config_root=str(args.config_root),
+                    cli_overrides=list(args.override),
+                )
+                mm = result["metrics"]
+                print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
+                print(
+                    f"[done] method={m} dataset={ds_name} "
+                    f"proj_dist={mm.get('proj_manifold_dist', float('nan')):.6f} "
+                    f"recall={mm.get('pred_recall', float('nan')):.6f} "
+                    f"FPrate={mm.get('pred_FPrate', float('nan')):.6f}"
+                )

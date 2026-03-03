@@ -1,0 +1,43 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  # Fixed method; this sweep focuses on eikonal only.
+  method:
+    values: [eikonal]
+
+  # One trial run per seed.
+  seed:
+    values: [0, 1, 2, 3, 4, 5]
+  lr:
+    values: [1.0e-5, 3.0e-5]
+  epochs:
+    values: [900, 1200]
+  lam_eikonal:
+    values: [0.1, 0.25, 0.5]
+  lam_eikonal_ortho:
+    values: [1.0]
+
+  # Dataset-specific sweep params.
+  ds__3d_spiral__proj_steps:
+    values: [60, 80]
+  ds__3d_sphere_surface__proj_steps:
+    values: [80, 100]
+  ds__2d_sine__proj_steps:
+    values: [40, 60]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --datasets
+  - 3d_spiral,3d_sphere_surface,2d_sine
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/singlemethod_eikonal_hparam_seed_multids
+  - --method-tag-prefix
+  - method

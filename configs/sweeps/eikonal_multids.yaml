@@ -1,0 +1,35 @@
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/objective
+  goal: minimize
+parameters:
+  lr:
+    values: [1.0e-5]
+  epochs:
+    values: [1200]
+  lam_eikonal:
+    values: [0.1, 0.25, 0.5]
+  lam_eikonal_ortho:
+    values: [1.0]
+  proj_steps:
+    values: [80]
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - eikonal
+  - --datasets
+  - 3d_planar_arm_line_n3
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/eikonal_multids
+  - --objective-metric
+  - proj_manifold_dist
+  - --objective-name
+  - sweep/objective
+  - --objective-goal
+  - minimize

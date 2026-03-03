@@ -1,0 +1,5 @@
+{
+  "n_train": 512,
+  "n_grid": 4096,
+  "codim_auto_k_neighbors": 5
+}
