@@ -1,0 +1,321 @@
+_wandb:
+    value:
+        cli_version: 0.18.2
+        m: []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 51
+                - 55
+            "2":
+                - 1
+                - 51
+                - 55
+            "3":
+                - 2
+                - 18
+                - 23
+                - 55
+            "4": 3.10.18
+            "5": 0.18.2
+            "8":
+                - 5
+            "12": 0.18.2
+            "13": linux-x86_64
+resolved__delta__6d_spatial_arm_up_n6__cfg__baseline_margin_target:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__batch_size:
+    value: 128
+resolved__delta__6d_spatial_arm_up_n6__cfg__depth:
+    value: 3
+resolved__delta__6d_spatial_arm_up_n6__cfg__device:
+    value: cuda
+resolved__delta__6d_spatial_arm_up_n6__cfg__epochs:
+    value: 2000
+resolved__delta__6d_spatial_arm_up_n6__cfg__eps:
+    value: 1e-08
+resolved__delta__6d_spatial_arm_up_n6__cfg__hidden:
+    value: 128
+resolved__delta__6d_spatial_arm_up_n6__cfg__knn_norm_estimation_min_points:
+    value: 4
+resolved__delta__6d_spatial_arm_up_n6__cfg__knn_norm_estimation_ratio:
+    value: 0.08
+resolved__delta__6d_spatial_arm_up_n6__cfg__knn_off_data_filter_min_points:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__knn_off_data_filter_ratio:
+    value: 0.03
+resolved__delta__6d_spatial_arm_up_n6__cfg__lam_off:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__lam_on:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__loss_ema_alpha:
+    value: 0.85
+resolved__delta__6d_spatial_arm_up_n6__cfg__lr:
+    value: 0.0003
+resolved__delta__6d_spatial_arm_up_n6__cfg__lr_decay_gamma:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__lr_decay_step:
+    value: 0
+resolved__delta__6d_spatial_arm_up_n6__cfg__n_grid:
+    value: 2048
+resolved__delta__6d_spatial_arm_up_n6__cfg__n_train:
+    value: 2048
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_bank_chunk:
+    value: 64
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_bank_max_rounds:
+    value: 6
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_bank_oversample:
+    value: 8
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_bank_size:
+    value: 32
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_curriculum_enable:
+    value: false
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_curriculum_epochs:
+    value: 0
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_curriculum_power:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_curriculum_start_ratio:
+    value: 0.2
+resolved__delta__6d_spatial_arm_up_n6__cfg__off_sigma_mode:
+    value: list
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__lam_manifold:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__method:
+    value: trajectory_opt
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__off_dist:
+    value: 0.6
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__opt_lr:
+    value: 0.01
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__opt_steps:
+    value: 1240
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__steps:
+    value: 64
+resolved__delta__6d_spatial_arm_up_n6__cfg__planner__trust_scale:
+    value: 0.8
+resolved__delta__6d_spatial_arm_up_n6__cfg__projector__alpha:
+    value: 0.3
+resolved__delta__6d_spatial_arm_up_n6__cfg__projector__min_steps:
+    value: 30
+resolved__delta__6d_spatial_arm_up_n6__cfg__projector__steps:
+    value: 100
+resolved__delta__6d_spatial_arm_up_n6__cfg__seed:
+    value: 173
+resolved__delta__6d_spatial_arm_up_n6__cfg__sigmas:
+    value:
+        - 0.4
+resolved__delta__6d_spatial_arm_up_n6__cfg__train_log_every:
+    value: 50
+resolved__delta__6d_spatial_arm_up_n6__cfg__use_knn_filter:
+    value: true
+resolved__delta__6d_spatial_arm_up_n6__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/delta.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/6d_spatial_arm_up_n6.json
+resolved__delta__6d_spatial_arm_up_n6__loaded_layers_count:
+    value: 3
+resolved__delta__6d_spatial_arm_up_n6__seed:
+    value: 173
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__baseline_margin_target:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__batch_size:
+    value: 128
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__depth:
+    value: 3
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__device:
+    value: cuda
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__epochs:
+    value: 2000
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__eps:
+    value: 1e-08
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__hidden:
+    value: 128
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__knn_norm_estimation_min_points:
+    value: 4
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__knn_norm_estimation_ratio:
+    value: 0.08
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__knn_off_data_filter_min_points:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__knn_off_data_filter_ratio:
+    value: 0.03
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__lam_off:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__lam_on:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__loss_ema_alpha:
+    value: 0.85
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__lr:
+    value: 0.0003
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__lr_decay_gamma:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__lr_decay_step:
+    value: 0
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__n_grid:
+    value: 8192
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__n_train:
+    value: 2048
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_bank_chunk:
+    value: 64
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_bank_max_rounds:
+    value: 6
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_bank_oversample:
+    value: 8
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_bank_size:
+    value: 32
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_curriculum_enable:
+    value: false
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_curriculum_epochs:
+    value: 0
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_curriculum_power:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_curriculum_start_ratio:
+    value: 0.2
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__off_sigma_mode:
+    value: list
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__lam_manifold:
+    value: 1
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__method:
+    value: trajectory_opt
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__off_dist:
+    value: 0.6
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__opt_lr:
+    value: 0.01
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__opt_steps:
+    value: 1240
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__steps:
+    value: 64
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__planner__trust_scale:
+    value: 0.8
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__projector__alpha:
+    value: 0.3
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__projector__min_steps:
+    value: 30
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__projector__steps:
+    value: 100
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__seed:
+    value: 173
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__sigmas:
+    value:
+        - 0.4
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__train_log_every:
+    value: 50
+resolved__delta__6d_spatial_arm_up_n6_py__cfg__use_knn_filter:
+    value: true
+resolved__delta__6d_spatial_arm_up_n6_py__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/delta.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/6d_spatial_arm_up_n6_py.json
+resolved__delta__6d_spatial_arm_up_n6_py__loaded_layers_count:
+    value: 3
+resolved__delta__6d_spatial_arm_up_n6_py__seed:
+    value: 173
+resolved__delta__6d_workspace_sine_surface_pose__cfg__baseline_margin_target:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__batch_size:
+    value: 128
+resolved__delta__6d_workspace_sine_surface_pose__cfg__depth:
+    value: 3
+resolved__delta__6d_workspace_sine_surface_pose__cfg__device:
+    value: cuda
+resolved__delta__6d_workspace_sine_surface_pose__cfg__epochs:
+    value: 2000
+resolved__delta__6d_workspace_sine_surface_pose__cfg__eps:
+    value: 1e-08
+resolved__delta__6d_workspace_sine_surface_pose__cfg__hidden:
+    value: 128
+resolved__delta__6d_workspace_sine_surface_pose__cfg__knn_norm_estimation_min_points:
+    value: 4
+resolved__delta__6d_workspace_sine_surface_pose__cfg__knn_norm_estimation_ratio:
+    value: 0.08
+resolved__delta__6d_workspace_sine_surface_pose__cfg__knn_off_data_filter_min_points:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__knn_off_data_filter_ratio:
+    value: 0.03
+resolved__delta__6d_workspace_sine_surface_pose__cfg__lam_off:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__lam_on:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__loss_ema_alpha:
+    value: 0.85
+resolved__delta__6d_workspace_sine_surface_pose__cfg__lr:
+    value: 0.0003
+resolved__delta__6d_workspace_sine_surface_pose__cfg__lr_decay_gamma:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__lr_decay_step:
+    value: 0
+resolved__delta__6d_workspace_sine_surface_pose__cfg__n_grid:
+    value: 8192
+resolved__delta__6d_workspace_sine_surface_pose__cfg__n_train:
+    value: 2048
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_bank_chunk:
+    value: 64
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_bank_max_rounds:
+    value: 6
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_bank_oversample:
+    value: 10
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_bank_size:
+    value: 48
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_curriculum_enable:
+    value: false
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_curriculum_epochs:
+    value: 0
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_curriculum_power:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_curriculum_start_ratio:
+    value: 0.2
+resolved__delta__6d_workspace_sine_surface_pose__cfg__off_sigma_mode:
+    value: list
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__lam_manifold:
+    value: 1
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__method:
+    value: trajectory_opt
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__off_dist:
+    value: 0.6
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__opt_lr:
+    value: 0.01
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__opt_steps:
+    value: 1240
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__steps:
+    value: 64
+resolved__delta__6d_workspace_sine_surface_pose__cfg__planner__trust_scale:
+    value: 0.8
+resolved__delta__6d_workspace_sine_surface_pose__cfg__projector__alpha:
+    value: 0.3
+resolved__delta__6d_workspace_sine_surface_pose__cfg__projector__min_steps:
+    value: 30
+resolved__delta__6d_workspace_sine_surface_pose__cfg__projector__steps:
+    value: 100
+resolved__delta__6d_workspace_sine_surface_pose__cfg__seed:
+    value: 173
+resolved__delta__6d_workspace_sine_surface_pose__cfg__sigmas:
+    value:
+        - 0.4
+resolved__delta__6d_workspace_sine_surface_pose__cfg__train_log_every:
+    value: 50
+resolved__delta__6d_workspace_sine_surface_pose__cfg__use_knn_filter:
+    value: true
+resolved__delta__6d_workspace_sine_surface_pose__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/delta.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/6d_workspace_sine_surface_pose.json
+resolved__delta__6d_workspace_sine_surface_pose__loaded_layers_count:
+    value: 3
+resolved__delta__6d_workspace_sine_surface_pose__seed:
+    value: 173
+seed:
+    value: 173

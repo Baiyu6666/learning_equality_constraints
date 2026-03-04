@@ -1,0 +1,206 @@
+[run] method=delta dataset=3d_planar_arm_line_n3 seed=173
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.041579 | on=0.007051 | off=0.115094
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.040153 | on=0.006887 | off=0.110886
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.045348 | on=0.005939 | off=0.131361
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.044725 | on=0.004542 | off=0.133943
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.026002 | on=0.005780 | off=0.067408
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.040381 | on=0.008304 | off=0.106924
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.032772 | on=0.003990 | off=0.095941
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.027706 | on=0.004485 | off=0.077402
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.015918 | on=0.003060 | off=0.042859
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.010751 | on=0.002316 | off=0.028116
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.008979 | on=0.002444 | off=0.021782
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.007633 | on=0.001571 | off=0.020208
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.008789 | on=0.001639 | off=0.023832
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.007038 | on=0.001694 | off=0.017814
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.005335 | on=0.001363 | off=0.013241
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.008623 | on=0.001291 | off=0.024440
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.006357 | on=0.000974 | off=0.017943
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.004262 | on=0.000756 | off=0.011689
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.006111 | on=0.001374 | off=0.015791
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.008438 | on=0.001289 | off=0.023831
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.004619 | on=0.000965 | off=0.012181
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.008226 | on=0.001419 | off=0.022692
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.006123 | on=0.000619 | off=0.018348
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.005313 | on=0.000570 | off=0.015809
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.007224 | on=0.001485 | off=0.019130
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.004177 | on=0.000891 | off=0.010953
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.003020 | on=0.000590 | off=0.008098
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.004476 | on=0.000763 | off=0.012376
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.003630 | on=0.000615 | off=0.010053
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.004562 | on=0.000760 | off=0.012675
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.004228 | on=0.000568 | off=0.012201
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.003655 | on=0.000925 | off=0.009100
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.003784 | on=0.000465 | off=0.011063
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.004715 | on=0.001022 | off=0.012309
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.004211 | on=0.001024 | off=0.010624
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.003147 | on=0.000502 | off=0.008816
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.002785 | on=0.000461 | off=0.007746
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.004481 | on=0.000432 | off=0.013496
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.001726 | on=0.000298 | off=0.004760
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.003920 | on=0.000482 | off=0.011462
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.001539 | on=0.000375 | off=0.003880
+[eval] 3d_planar_arm_line_n3 | proj_dist=0.052657 | pred_recall=0.632653 | pred_FPrate=0.011395 | chamfer=0.057910 | gt->learned=0.004696 | learned->gt=0.053214 | space=workspace
+[done] method=delta dataset=3d_planar_arm_line_n3 seed=173 proj_dist=0.052657 recall=0.632653 FPrate=0.011395
+[run] method=delta dataset=3d_saddle_surface seed=173
+[train] method=delta ep=   1/1000 | lr=3.00e-04 | loss=0.046733 | on=0.007111 | off=0.132075
+[train] method=delta ep=  50/1000 | lr=3.00e-04 | loss=0.026935 | on=0.003904 | off=0.076772
+[train] method=delta ep= 100/1000 | lr=3.00e-04 | loss=0.001081 | on=0.000250 | off=0.002769
+[train] method=delta ep= 150/1000 | lr=3.00e-04 | loss=0.000453 | on=0.000072 | off=0.001272
+[train] method=delta ep= 200/1000 | lr=3.00e-04 | loss=0.000133 | on=0.000035 | off=0.000328
+[train] method=delta ep= 250/1000 | lr=3.00e-04 | loss=0.000138 | on=0.000031 | off=0.000356
+[train] method=delta ep= 300/1000 | lr=3.00e-04 | loss=0.000142 | on=0.000027 | off=0.000385
+[train] method=delta ep= 350/1000 | lr=3.00e-04 | loss=0.000121 | on=0.000033 | off=0.000296
+[train] method=delta ep= 400/1000 | lr=3.00e-04 | loss=0.000090 | on=0.000031 | off=0.000198
+[train] method=delta ep= 450/1000 | lr=3.00e-04 | loss=0.000065 | on=0.000021 | off=0.000145
+[train] method=delta ep= 500/1000 | lr=3.00e-04 | loss=0.000053 | on=0.000012 | off=0.000136
+[train] method=delta ep= 550/1000 | lr=3.00e-04 | loss=0.000058 | on=0.000014 | off=0.000147
+[train] method=delta ep= 600/1000 | lr=3.00e-04 | loss=0.000056 | on=0.000004 | off=0.000174
+[train] method=delta ep= 650/1000 | lr=3.00e-04 | loss=0.000042 | on=0.000007 | off=0.000120
+[train] method=delta ep= 700/1000 | lr=3.00e-04 | loss=0.000035 | on=0.000005 | off=0.000099
+[train] method=delta ep= 750/1000 | lr=3.00e-04 | loss=0.000053 | on=0.000002 | off=0.000168
+[train] method=delta ep= 800/1000 | lr=3.00e-04 | loss=0.000037 | on=0.000003 | off=0.000113
+[train] method=delta ep= 850/1000 | lr=3.00e-04 | loss=0.000047 | on=0.000002 | off=0.000150
+[train] method=delta ep= 900/1000 | lr=3.00e-04 | loss=0.000040 | on=0.000005 | off=0.000116
+[train] method=delta ep= 950/1000 | lr=3.00e-04 | loss=0.000069 | on=0.000012 | off=0.000190
+[train] method=delta ep=1000/1000 | lr=3.00e-04 | loss=0.000025 | on=0.000004 | off=0.000071
+[eval] 3d_saddle_surface | proj_dist=0.111321 | pred_recall=0.206186 | pred_FPrate=0.002050 | chamfer=0.170131 | gt->learned=0.030631 | learned->gt=0.139500 | space=data_space
+[done] method=delta dataset=3d_saddle_surface seed=173 proj_dist=0.111321 recall=0.206186 FPrate=0.002050
+[run] method=delta dataset=3d_spatial_arm_circle_n3 seed=173
+[train] method=delta ep=   1/1000 | lr=3.00e-04 | loss=0.034052 | on=0.002373 | off=0.105598
+[train] method=delta ep=  50/1000 | lr=3.00e-04 | loss=0.011519 | on=0.000027 | off=0.038306
+[train] method=delta ep= 100/1000 | lr=3.00e-04 | loss=0.010475 | on=0.000033 | off=0.034805
+[train] method=delta ep= 150/1000 | lr=3.00e-04 | loss=0.012613 | on=0.000182 | off=0.041434
+[train] method=delta ep= 200/1000 | lr=3.00e-04 | loss=0.010317 | on=0.000111 | off=0.034021
+[train] method=delta ep= 250/1000 | lr=3.00e-04 | loss=0.008292 | on=0.000049 | off=0.027479
+[train] method=delta ep= 300/1000 | lr=3.00e-04 | loss=0.006121 | on=0.000056 | off=0.020216
+[train] method=delta ep= 350/1000 | lr=3.00e-04 | loss=0.010877 | on=0.000044 | off=0.036107
+[train] method=delta ep= 400/1000 | lr=3.00e-04 | loss=0.008852 | on=0.000291 | off=0.028534
+[train] method=delta ep= 450/1000 | lr=3.00e-04 | loss=0.006635 | on=0.000183 | off=0.021507
+[train] method=delta ep= 500/1000 | lr=3.00e-04 | loss=0.006789 | on=0.000144 | off=0.022151
+[train] method=delta ep= 550/1000 | lr=3.00e-04 | loss=0.008829 | on=0.000060 | off=0.029231
+[train] method=delta ep= 600/1000 | lr=3.00e-04 | loss=0.007431 | on=0.000027 | off=0.024680
+[train] method=delta ep= 650/1000 | lr=3.00e-04 | loss=0.005542 | on=0.000027 | off=0.018384
+[train] method=delta ep= 700/1000 | lr=3.00e-04 | loss=0.007128 | on=0.000002 | off=0.023752
+[train] method=delta ep= 750/1000 | lr=3.00e-04 | loss=0.010944 | on=0.000147 | off=0.035988
+[train] method=delta ep= 800/1000 | lr=3.00e-04 | loss=0.010618 | on=0.000067 | off=0.035169
+[train] method=delta ep= 850/1000 | lr=3.00e-04 | loss=0.010426 | on=0.000046 | off=0.034599
+[train] method=delta ep= 900/1000 | lr=3.00e-04 | loss=0.009227 | on=0.000027 | off=0.030665
+[train] method=delta ep= 950/1000 | lr=3.00e-04 | loss=0.010304 | on=0.000154 | off=0.033832
+[train] method=delta ep=1000/1000 | lr=3.00e-04 | loss=0.006814 | on=0.000016 | off=0.022661
+[eval] 3d_spatial_arm_circle_n3 | proj_dist=0.247499 | pred_recall=0.454545 | pred_FPrate=0.009302 | chamfer=0.269217 | gt->learned=0.021575 | learned->gt=0.247641 | space=workspace
+[done] method=delta dataset=3d_spatial_arm_circle_n3 seed=173 proj_dist=0.247499 recall=0.454545 FPrate=0.009302
+[run] method=delta dataset=3d_spiral seed=173
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.027972 | on=0.001337 | off=0.088783
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.018240 | on=0.003321 | off=0.049731
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.011656 | on=0.000359 | off=0.037657
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.007525 | on=0.000209 | off=0.024386
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.008941 | on=0.000066 | off=0.029581
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.009409 | on=0.000353 | off=0.030186
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.009584 | on=0.000059 | off=0.031750
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.004951 | on=0.000084 | off=0.016224
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.008198 | on=0.000077 | off=0.027068
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.011641 | on=0.000110 | off=0.038440
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.008221 | on=0.000082 | off=0.027129
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.007040 | on=0.000145 | off=0.022981
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.010851 | on=0.000114 | off=0.035789
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.006515 | on=0.000121 | off=0.021315
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.008916 | on=0.000062 | off=0.029514
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.007341 | on=0.000028 | off=0.024379
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.007385 | on=0.000033 | off=0.024507
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.011079 | on=0.000173 | off=0.036352
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.009557 | on=0.000116 | off=0.031472
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.005523 | on=0.000104 | off=0.018064
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.006751 | on=0.000120 | off=0.022101
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.005654 | on=0.000089 | off=0.018550
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.006702 | on=0.000057 | off=0.022150
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.007948 | on=0.000104 | off=0.026148
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.007310 | on=0.000321 | off=0.023297
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.006762 | on=0.000298 | off=0.021545
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.008600 | on=0.000072 | off=0.028427
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.010896 | on=0.000033 | off=0.036209
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.009645 | on=0.000138 | off=0.031690
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.009347 | on=0.000105 | off=0.030804
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.009756 | on=0.000054 | off=0.032340
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.006588 | on=0.000112 | off=0.021588
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.009215 | on=0.000048 | off=0.030557
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.008450 | on=0.000110 | off=0.027802
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.007404 | on=0.000133 | off=0.024238
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.006358 | on=0.000021 | off=0.021124
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.007447 | on=0.000030 | off=0.024725
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.004893 | on=0.000138 | off=0.015851
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.007459 | on=0.000101 | off=0.024527
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.005507 | on=0.000057 | off=0.018170
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.007072 | on=0.000043 | off=0.023428
+[eval] 3d_spiral | proj_dist=0.421979 | pred_recall=0.444444 | pred_FPrate=0.014958 | chamfer=0.455802 | gt->learned=0.033197 | learned->gt=0.422605 | space=data_space
+[done] method=delta dataset=3d_spiral seed=173 proj_dist=0.421979 recall=0.444444 FPrate=0.014958
+[run] method=delta dataset=3d_torus_surface seed=173
+[train] method=delta ep=   1/1000 | lr=3.00e-04 | loss=0.036990 | on=0.004486 | off=0.108346
+[train] method=delta ep=  50/1000 | lr=3.00e-04 | loss=0.022303 | on=0.006038 | off=0.054214
+[train] method=delta ep= 100/1000 | lr=3.00e-04 | loss=0.017947 | on=0.003927 | off=0.046733
+[train] method=delta ep= 150/1000 | lr=3.00e-04 | loss=0.007066 | on=0.001401 | off=0.018881
+[train] method=delta ep= 200/1000 | lr=3.00e-04 | loss=0.003181 | on=0.000326 | off=0.009518
+[train] method=delta ep= 250/1000 | lr=3.00e-04 | loss=0.002841 | on=0.000170 | off=0.008905
+[train] method=delta ep= 300/1000 | lr=3.00e-04 | loss=0.002586 | on=0.000370 | off=0.007388
+[train] method=delta ep= 350/1000 | lr=3.00e-04 | loss=0.001493 | on=0.000154 | off=0.004465
+[train] method=delta ep= 400/1000 | lr=3.00e-04 | loss=0.002412 | on=0.000288 | off=0.007080
+[train] method=delta ep= 450/1000 | lr=3.00e-04 | loss=0.001474 | on=0.000133 | off=0.004468
+[train] method=delta ep= 500/1000 | lr=3.00e-04 | loss=0.001147 | on=0.000187 | off=0.003199
+[train] method=delta ep= 550/1000 | lr=3.00e-04 | loss=0.001000 | on=0.000151 | off=0.002831
+[train] method=delta ep= 600/1000 | lr=3.00e-04 | loss=0.001268 | on=0.000099 | off=0.003896
+[train] method=delta ep= 650/1000 | lr=3.00e-04 | loss=0.001286 | on=0.000104 | off=0.003939
+[train] method=delta ep= 700/1000 | lr=3.00e-04 | loss=0.000864 | on=0.000145 | off=0.002395
+[train] method=delta ep= 750/1000 | lr=3.00e-04 | loss=0.000832 | on=0.000081 | off=0.002504
+[train] method=delta ep= 800/1000 | lr=3.00e-04 | loss=0.000755 | on=0.000086 | off=0.002232
+[train] method=delta ep= 850/1000 | lr=3.00e-04 | loss=0.000819 | on=0.000124 | off=0.002316
+[train] method=delta ep= 900/1000 | lr=3.00e-04 | loss=0.000573 | on=0.000046 | off=0.001755
+[train] method=delta ep= 950/1000 | lr=3.00e-04 | loss=0.000647 | on=0.000067 | off=0.001934
+[train] method=delta ep=1000/1000 | lr=3.00e-04 | loss=0.000484 | on=0.000062 | off=0.001407
+[eval] 3d_torus_surface | proj_dist=0.058105 | pred_recall=0.271523 | pred_FPrate=0.008872 | chamfer=0.164964 | gt->learned=0.059438 | learned->gt=0.105526 | space=data_space
+[done] method=delta dataset=3d_torus_surface seed=173 proj_dist=0.058105 recall=0.271523 FPrate=0.008872
+[run] method=delta dataset=3d_vz_2d_ellipse seed=173
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.042111 | on=0.001078 | off=0.136779
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.033293 | on=0.005446 | off=0.092822
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.032565 | on=0.006443 | off=0.087073
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.014356 | on=0.001171 | off=0.043949
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.010432 | on=0.000609 | off=0.032742
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.010710 | on=0.000462 | off=0.034161
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.007748 | on=0.000629 | off=0.023730
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.009386 | on=0.000606 | off=0.029264
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.010825 | on=0.000670 | off=0.033850
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.012525 | on=0.000492 | off=0.040112
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.008506 | on=0.000409 | off=0.026988
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.011669 | on=0.000732 | off=0.036457
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.011670 | on=0.000479 | off=0.037302
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.009693 | on=0.000447 | off=0.030821
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.009992 | on=0.000420 | off=0.031906
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.006239 | on=0.000486 | off=0.019178
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.008320 | on=0.000576 | off=0.025814
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.009216 | on=0.000414 | off=0.029340
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.007143 | on=0.000641 | off=0.021672
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.007875 | on=0.000505 | off=0.024567
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.007339 | on=0.000482 | off=0.022858
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.008512 | on=0.000545 | off=0.026557
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.007633 | on=0.000213 | off=0.024733
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.008817 | on=0.000335 | off=0.028275
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.007188 | on=0.000200 | off=0.023293
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.006067 | on=0.000314 | off=0.019178
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.004598 | on=0.000154 | off=0.014814
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.008080 | on=0.000260 | off=0.026067
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.004472 | on=0.000225 | off=0.014158
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.009649 | on=0.000201 | off=0.031494
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.007055 | on=0.000152 | off=0.023010
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.007646 | on=0.000311 | off=0.024449
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.009615 | on=0.000225 | off=0.031298
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.006697 | on=0.000581 | off=0.020387
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.010537 | on=0.000313 | off=0.034079
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.007947 | on=0.000267 | off=0.025600
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.006565 | on=0.000354 | off=0.020706
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.008103 | on=0.000189 | off=0.026378
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.005386 | on=0.000393 | off=0.016643
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.007489 | on=0.000234 | off=0.024182
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.006100 | on=0.000278 | off=0.019407
+[eval] 3d_vz_2d_ellipse | proj_dist=0.273589 | pred_recall=0.600000 | pred_FPrate=0.035170 | chamfer=0.302125 | gt->learned=0.028312 | learned->gt=0.273813 | space=data_space
+[done] method=delta dataset=3d_vz_2d_ellipse seed=173 proj_dist=0.273589 recall=0.600000 FPrate=0.035170
+[saved] /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/delta_all_3d/sweep_summary_delta_seed173.json
+[sweep] method=delta avg_metrics=18 over cases=6

@@ -1,0 +1,4 @@
+dataset,method,proj_manifold_dist,pred_precision
+6d_spatial_arm_up_n6,delta,0.20092690885066986,0.000244140625
+6d_spatial_arm_up_n6,eikonal,0.2114831805229187,0.000146484375
+6d_spatial_arm_up_n6,vae,0.22698739171028137,4.8828125e-05

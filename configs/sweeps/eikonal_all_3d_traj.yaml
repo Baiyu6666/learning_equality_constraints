@@ -1,0 +1,36 @@
+project: equality_manifold_unified
+entity: pby
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  seed:
+    values: [173]
+  lr:
+    values: [0.002]
+  epochs:
+    values: [2000]
+  lam_eikonal:
+    values: [0.2]
+  lam_eikonal_ortho:
+    values: [1.0]
+  projector.steps:
+    values: [80]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - eikonal
+  - --datasets
+  - 3d_twosphere_traj,3d_planar_arm_line_n3_traj,3d_spatial_arm_plane_n3_traj
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/eikonal_all_3d_traj
+  - --method-tag-prefix
+  - method

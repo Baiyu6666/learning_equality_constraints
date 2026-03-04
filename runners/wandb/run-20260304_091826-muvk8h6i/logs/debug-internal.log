@@ -1,0 +1,21 @@
+{"time":"2026-03-04T09:18:26.516160025+01:00","level":"INFO","msg":"using version","core version":"0.18.2"}
+{"time":"2026-03-04T09:18:26.516166229+01:00","level":"INFO","msg":"created symlink","path":"/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_091826-muvk8h6i/logs/debug-core.log"}
+{"time":"2026-03-04T09:18:26.517073669+01:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2026-03-04T09:18:26.519085353+01:00","level":"INFO","msg":"created new stream","id":"muvk8h6i"}
+{"time":"2026-03-04T09:18:26.519098036+01:00","level":"INFO","msg":"stream: started","id":"muvk8h6i"}
+{"time":"2026-03-04T09:18:26.519105769+01:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:18:26.51910761+01:00","level":"INFO","msg":"sender: started","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:18:26.519161813+01:00","level":"INFO","msg":"handler: started","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:18:26.821681348+01:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2026-03-04T09:18:26.822021911+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-03-04T09:20:59.333883088+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2026-03-04T09:20:59.33499685+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2026-03-04T09:20:59.876636017+01:00","level":"WARN","msg":"No job ingredients found, not creating job artifact"}
+{"time":"2026-03-04T09:20:59.876655838+01:00","level":"WARN","msg":"No source type found, not creating job artifact"}
+{"time":"2026-03-04T09:20:59.876662243+01:00","level":"INFO","msg":"sender: sendDefer: no job artifact to save"}
+{"time":"2026-03-04T09:21:00.742123201+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-04T09:21:02.25596211+01:00","level":"INFO","msg":"stream: closing","id":"muvk8h6i"}
+{"time":"2026-03-04T09:21:02.255990539+01:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:21:02.256040033+01:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:21:02.2560299+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"muvk8h6i"}}
+{"time":"2026-03-04T09:21:02.256128967+01:00","level":"INFO","msg":"stream: closed","id":"muvk8h6i"}

@@ -1,0 +1,48 @@
+[run] method=vae dataset=2d_ellipse seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/500 | lr=1.00e-03 | loss=1.255994 | recon=1.255987 | kl=0.061519 | beta=0.000
+[train] method=vae ep=  50/500 | lr=1.00e-03 | loss=0.623776 | recon=0.617148 | kl=1.166625 | beta=0.006
+[train] method=vae ep= 100/500 | lr=1.00e-03 | loss=0.306785 | recon=0.265520 | kl=3.631260 | beta=0.011
+[train] method=vae ep= 150/500 | lr=1.00e-03 | loss=0.307056 | recon=0.259350 | kl=2.798773 | beta=0.017
+[train] method=vae ep= 200/500 | lr=1.00e-03 | loss=0.298534 | recon=0.242205 | kl=2.478513 | beta=0.023
+[train] method=vae ep= 250/500 | lr=1.00e-03 | loss=0.284464 | recon=0.216166 | kl=2.404083 | beta=0.028
+[train] method=vae ep= 300/500 | lr=1.00e-03 | loss=0.236868 | recon=0.153347 | kl=2.449952 | beta=0.034
+[train] method=vae ep= 350/500 | lr=1.00e-03 | loss=0.232407 | recon=0.134536 | kl=2.460737 | beta=0.040
+[train] method=vae ep= 400/500 | lr=1.00e-03 | loss=0.211061 | recon=0.103050 | kl=2.376225 | beta=0.045
+[train] method=vae ep= 450/500 | lr=1.00e-03 | loss=0.206397 | recon=0.090117 | kl=2.325593 | beta=0.050
+[train] method=vae ep= 500/500 | lr=1.00e-03 | loss=0.203885 | recon=0.090856 | kl=2.260590 | beta=0.050
+[eval] 2d_ellipse | proj_dist=0.284450 | pred_recall=0.780822 | pred_FPrate=0.551525 | chamfer=0.676129 | gt->learned=0.391341 | learned->gt=0.284788 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_ellipse_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_ellipse_vae_loss_curves.png
+Traceback (most recent call last):
+  File "/home/baiyu/miniconda3/envs/segment/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/baiyu/miniconda3/envs/segment/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/baiyu/PycharmProjects/equality_manofld/runners/run_sweep.py", line 371, in <module>
+    main()
+  File "/home/baiyu/PycharmProjects/equality_manofld/runners/run_sweep.py", line 305, in main
+    result, loaded_paths = run_one(
+  File "/home/baiyu/PycharmProjects/equality_manofld/common/unified_experiment.py", line 1056, in run_one
+    result = run_vae_one(
+  File "/home/baiyu/PycharmProjects/equality_manofld/common/unified_experiment.py", line 1325, in run_vae_one
+    plot_planned_paths(
+  File "/home/baiyu/PycharmProjects/equality_manofld/methods/baseline_udf/plots.py", line 96, in plot_planned_paths
+    f_grid = model(grid_t).cpu().numpy().reshape(xx.shape)
+ValueError: cannot reshape array of size 180000 into shape (300,300)
+Traceback (most recent call last):
+  File "/home/baiyu/miniconda3/envs/segment/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/baiyu/miniconda3/envs/segment/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/baiyu/PycharmProjects/equality_manofld/runners/run_sweep.py", line 371, in <module>
+    main()
+  File "/home/baiyu/PycharmProjects/equality_manofld/runners/run_sweep.py", line 305, in main
+    result, loaded_paths = run_one(
+  File "/home/baiyu/PycharmProjects/equality_manofld/common/unified_experiment.py", line 1056, in run_one
+    result = run_vae_one(
+  File "/home/baiyu/PycharmProjects/equality_manofld/common/unified_experiment.py", line 1325, in run_vae_one
+    plot_planned_paths(
+  File "/home/baiyu/PycharmProjects/equality_manofld/methods/baseline_udf/plots.py", line 96, in plot_planned_paths
+    f_grid = model(grid_t).cpu().numpy().reshape(xx.shape)
+ValueError: cannot reshape array of size 180000 into shape (300,300)

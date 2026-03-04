@@ -1,0 +1,21 @@
+{"time":"2026-03-04T09:12:03.887593082+01:00","level":"INFO","msg":"using version","core version":"0.18.2"}
+{"time":"2026-03-04T09:12:03.887610043+01:00","level":"INFO","msg":"created symlink","path":"/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_091203-tazges4y/logs/debug-core.log"}
+{"time":"2026-03-04T09:12:03.890971695+01:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2026-03-04T09:12:03.89497923+01:00","level":"INFO","msg":"created new stream","id":"tazges4y"}
+{"time":"2026-03-04T09:12:03.895004222+01:00","level":"INFO","msg":"stream: started","id":"tazges4y"}
+{"time":"2026-03-04T09:12:03.89501847+01:00","level":"INFO","msg":"sender: started","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:12:03.89505133+01:00","level":"INFO","msg":"handler: started","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:12:03.895032599+01:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:12:04.261993927+01:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2026-03-04T09:12:04.262604393+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-03-04T09:13:04.683627307+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2026-03-04T09:13:04.684533737+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2026-03-04T09:13:05.046857403+01:00","level":"WARN","msg":"No job ingredients found, not creating job artifact"}
+{"time":"2026-03-04T09:13:05.046872082+01:00","level":"WARN","msg":"No source type found, not creating job artifact"}
+{"time":"2026-03-04T09:13:05.046875979+01:00","level":"INFO","msg":"sender: sendDefer: no job artifact to save"}
+{"time":"2026-03-04T09:13:05.721099296+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-04T09:13:07.012976248+01:00","level":"INFO","msg":"stream: closing","id":"tazges4y"}
+{"time":"2026-03-04T09:13:07.012989625+01:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:13:07.013011786+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:13:07.013043679+01:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"tazges4y"}}
+{"time":"2026-03-04T09:13:07.013076496+01:00","level":"INFO","msg":"stream: closed","id":"tazges4y"}

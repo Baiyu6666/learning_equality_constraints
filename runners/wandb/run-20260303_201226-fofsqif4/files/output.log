@@ -1,0 +1,425 @@
+[run] method=delta dataset=6d_spatial_arm_up_n6 seed=173
+[data][ur5] target=2048, max_tries=61440, mode=solve(q5,q6|q1..q4)
+[data][ur5] tries=1, accepted=1/2048
+[data][ur5] tries=20, accepted=13/2048
+[data][ur5] tries=40, accepted=26/2048
+[data][ur5] tries=60, accepted=32/2048
+[data][ur5] tries=100, accepted=49/2048
+[data][ur5] tries=120, accepted=56/2048
+[data][ur5] tries=140, accepted=65/2048
+[data][ur5] tries=160, accepted=76/2048
+[data][ur5] tries=200, accepted=98/2048
+[data][ur5] tries=220, accepted=110/2048
+[data][ur5] tries=260, accepted=127/2048
+[data][ur5] tries=280, accepted=138/2048
+[data][ur5] tries=300, accepted=150/2048
+[data][ur5] tries=320, accepted=161/2048
+[data][ur5] tries=340, accepted=169/2048
+[data][ur5] tries=360, accepted=183/2048
+[data][ur5] tries=380, accepted=195/2048
+[data][ur5] tries=400, accepted=208/2048
+[data][ur5] tries=420, accepted=216/2048
+[data][ur5] tries=440, accepted=225/2048
+[data][ur5] tries=460, accepted=238/2048
+[data][ur5] tries=480, accepted=249/2048
+[data][ur5] tries=500, accepted=258/2048
+[data][ur5] tries=520, accepted=268/2048
+[data][ur5] tries=540, accepted=275/2048
+[data][ur5] tries=560, accepted=283/2048
+[data][ur5] tries=580, accepted=293/2048
+[data][ur5] tries=600, accepted=303/2048
+[data][ur5] tries=620, accepted=312/2048
+[data][ur5] tries=640, accepted=319/2048
+[data][ur5] tries=660, accepted=330/2048
+[data][ur5] tries=680, accepted=343/2048
+[data][ur5] tries=700, accepted=356/2048
+[data][ur5] tries=720, accepted=368/2048
+[data][ur5] tries=740, accepted=378/2048
+[data][ur5] tries=760, accepted=389/2048
+[data][ur5] tries=780, accepted=399/2048
+[data][ur5] tries=800, accepted=405/2048
+[data][ur5] tries=820, accepted=415/2048
+[data][ur5] tries=840, accepted=428/2048
+[data][ur5] tries=860, accepted=441/2048
+[data][ur5] tries=880, accepted=453/2048
+[data][ur5] tries=900, accepted=466/2048
+[data][ur5] tries=920, accepted=480/2048
+[data][ur5] tries=940, accepted=492/2048
+[data][ur5] tries=960, accepted=504/2048
+[data][ur5] tries=980, accepted=515/2048
+[data][ur5] tries=1020, accepted=539/2048
+[data][ur5] tries=1040, accepted=547/2048
+[data][ur5] tries=1060, accepted=562/2048
+[data][ur5] tries=1080, accepted=574/2048
+[data][ur5] tries=1100, accepted=581/2048
+[data][ur5] tries=1120, accepted=596/2048
+[data][ur5] tries=1140, accepted=610/2048
+[data][ur5] tries=1160, accepted=619/2048
+[data][ur5] tries=1200, accepted=636/2048
+[data][ur5] tries=1260, accepted=666/2048
+[data][ur5] tries=1280, accepted=680/2048
+[data][ur5] tries=1300, accepted=688/2048
+[data][ur5] tries=1320, accepted=704/2048
+[data][ur5] tries=1340, accepted=712/2048
+[data][ur5] tries=1360, accepted=723/2048
+[data][ur5] tries=1380, accepted=731/2048
+[data][ur5] tries=1400, accepted=741/2048
+[data][ur5] tries=1420, accepted=750/2048
+[data][ur5] tries=1440, accepted=761/2048
+[data][ur5] tries=1480, accepted=783/2048
+[data][ur5] tries=1500, accepted=793/2048
+[data][ur5] tries=1520, accepted=803/2048
+[data][ur5] tries=1540, accepted=815/2048
+[data][ur5] tries=1560, accepted=828/2048
+[data][ur5] tries=1580, accepted=837/2048
+[data][ur5] tries=1600, accepted=853/2048
+[data][ur5] tries=1620, accepted=864/2048
+[data][ur5] tries=1640, accepted=876/2048
+[data][ur5] tries=1660, accepted=887/2048
+[data][ur5] tries=1680, accepted=898/2048
+[data][ur5] tries=1720, accepted=919/2048
+[data][ur5] tries=1740, accepted=927/2048
+[data][ur5] tries=1760, accepted=937/2048
+[data][ur5] tries=1780, accepted=948/2048
+[data][ur5] tries=1800, accepted=958/2048
+[data][ur5] tries=1820, accepted=971/2048
+[data][ur5] tries=1860, accepted=991/2048
+[data][ur5] tries=1880, accepted=999/2048
+[data][ur5] tries=1900, accepted=1011/2048
+[data][ur5] tries=1920, accepted=1018/2048
+[data][ur5] tries=1940, accepted=1029/2048
+[data][ur5] tries=1960, accepted=1043/2048
+[data][ur5] tries=1980, accepted=1055/2048
+[data][ur5] tries=2000, accepted=1065/2048
+[data][ur5] tries=2020, accepted=1080/2048
+[data][ur5] tries=2060, accepted=1099/2048
+[data][ur5] tries=2080, accepted=1112/2048
+[data][ur5] tries=2100, accepted=1124/2048
+[data][ur5] tries=2120, accepted=1135/2048
+[data][ur5] tries=2140, accepted=1145/2048
+[data][ur5] tries=2160, accepted=1155/2048
+[data][ur5] tries=2180, accepted=1168/2048
+[data][ur5] tries=2200, accepted=1175/2048
+[data][ur5] tries=2220, accepted=1182/2048
+[data][ur5] tries=2240, accepted=1191/2048
+[data][ur5] tries=2260, accepted=1198/2048
+[data][ur5] tries=2280, accepted=1208/2048
+[data][ur5] tries=2300, accepted=1221/2048
+[data][ur5] tries=2320, accepted=1231/2048
+[data][ur5] tries=2360, accepted=1251/2048
+[data][ur5] tries=2380, accepted=1264/2048
+[data][ur5] tries=2440, accepted=1289/2048
+[data][ur5] tries=2460, accepted=1301/2048
+[data][ur5] tries=2480, accepted=1312/2048
+[data][ur5] tries=2500, accepted=1323/2048
+[data][ur5] tries=2520, accepted=1337/2048
+[data][ur5] tries=2560, accepted=1359/2048
+[data][ur5] tries=2580, accepted=1366/2048
+[data][ur5] tries=2600, accepted=1374/2048
+[data][ur5] tries=2620, accepted=1387/2048
+[data][ur5] tries=2640, accepted=1399/2048
+[data][ur5] tries=2660, accepted=1410/2048
+[data][ur5] tries=2680, accepted=1416/2048
+[data][ur5] tries=2700, accepted=1429/2048
+[data][ur5] tries=2720, accepted=1438/2048
+[data][ur5] tries=2740, accepted=1448/2048
+[data][ur5] tries=2760, accepted=1460/2048
+[data][ur5] tries=2780, accepted=1474/2048
+[data][ur5] tries=2800, accepted=1488/2048
+[data][ur5] tries=2820, accepted=1493/2048
+[data][ur5] tries=2840, accepted=1506/2048
+[data][ur5] tries=2860, accepted=1512/2048
+[data][ur5] tries=2880, accepted=1521/2048
+[data][ur5] tries=2900, accepted=1534/2048
+[data][ur5] tries=2920, accepted=1543/2048
+[data][ur5] tries=2940, accepted=1554/2048
+[data][ur5] tries=2960, accepted=1566/2048
+[data][ur5] tries=2980, accepted=1580/2048
+[data][ur5] tries=3000, accepted=1592/2048
+[data][ur5] tries=3020, accepted=1603/2048
+[data][ur5] tries=3040, accepted=1613/2048
+[data][ur5] tries=3060, accepted=1625/2048
+[data][ur5] tries=3100, accepted=1644/2048
+[data][ur5] tries=3120, accepted=1654/2048
+[data][ur5] tries=3140, accepted=1665/2048
+[data][ur5] tries=3160, accepted=1676/2048
+[data][ur5] tries=3200, accepted=1698/2048
+[data][ur5] tries=3220, accepted=1711/2048
+[data][ur5] tries=3240, accepted=1719/2048
+[data][ur5] tries=3260, accepted=1728/2048
+[data][ur5] tries=3280, accepted=1737/2048
+[data][ur5] tries=3320, accepted=1760/2048
+[data][ur5] tries=3340, accepted=1775/2048
+[data][ur5] tries=3360, accepted=1787/2048
+[data][ur5] tries=3380, accepted=1803/2048
+[data][ur5] tries=3420, accepted=1823/2048
+[data][ur5] tries=3440, accepted=1834/2048
+[data][ur5] tries=3460, accepted=1846/2048
+[data][ur5] tries=3480, accepted=1854/2048
+[data][ur5] tries=3520, accepted=1875/2048
+[data][ur5] tries=3540, accepted=1889/2048
+[data][ur5] tries=3560, accepted=1901/2048
+[data][ur5] tries=3580, accepted=1913/2048
+[data][ur5] tries=3600, accepted=1924/2048
+[data][ur5] tries=3620, accepted=1933/2048
+[data][ur5] tries=3640, accepted=1945/2048
+[data][ur5] tries=3660, accepted=1953/2048
+[data][ur5] tries=3700, accepted=1974/2048
+[data][ur5] tries=3720, accepted=1984/2048
+[data][ur5] tries=3740, accepted=1995/2048
+[data][ur5] tries=3760, accepted=2004/2048
+[data][ur5] tries=3780, accepted=2014/2048
+[data][ur5] tries=3800, accepted=2024/2048
+[data][ur5] tries=3820, accepted=2035/2048
+[data][ur5] target=1, max_tries=300, mode=solve(q5,q6|q1..q4)
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.106228 | on=0.024590 | off=0.081638
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.090452 | on=0.020380 | off=0.070072
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.109192 | on=0.025802 | off=0.083390
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.120284 | on=0.023866 | off=0.096418
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.110542 | on=0.024026 | off=0.086516
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.137433 | on=0.026647 | off=0.110785
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.097505 | on=0.024244 | off=0.073260
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.059344 | on=0.016101 | off=0.043243
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.074372 | on=0.013355 | off=0.061017
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.058138 | on=0.012194 | off=0.045943
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.050204 | on=0.013525 | off=0.036680
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.040808 | on=0.006825 | off=0.033983
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.043957 | on=0.008489 | off=0.035468
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.045137 | on=0.004358 | off=0.040779
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.026306 | on=0.006541 | off=0.019765
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.028234 | on=0.005659 | off=0.022575
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.035153 | on=0.005361 | off=0.029792
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.034302 | on=0.007091 | off=0.027211
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.029991 | on=0.003858 | off=0.026133
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.027632 | on=0.007071 | off=0.020562
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.027492 | on=0.002975 | off=0.024516
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.016367 | on=0.003615 | off=0.012751
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.018394 | on=0.002956 | off=0.015439
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.024781 | on=0.005485 | off=0.019296
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.023198 | on=0.002659 | off=0.020539
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.015851 | on=0.003234 | off=0.012616
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.025546 | on=0.003653 | off=0.021893
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.020092 | on=0.003093 | off=0.016999
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.021339 | on=0.003456 | off=0.017882
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.019295 | on=0.003269 | off=0.016026
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.022541 | on=0.003656 | off=0.018885
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.020104 | on=0.003221 | off=0.016883
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.020603 | on=0.002976 | off=0.017627
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.018692 | on=0.002126 | off=0.016566
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.019492 | on=0.004217 | off=0.015275
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.017587 | on=0.002302 | off=0.015285
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.014232 | on=0.002900 | off=0.011331
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.017581 | on=0.002062 | off=0.015519
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.015907 | on=0.002473 | off=0.013434
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.021116 | on=0.002096 | off=0.019020
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.017903 | on=0.002709 | off=0.015194
+[eval] 6d_spatial_arm_up_n6 | proj_dist=0.200390 | pred_recall=nan | pred_FPrate=0.012695 | chamfer=0.703766 | gt->learned=0.425218 | learned->gt=0.278548 | space=workspace
+/home/baiyu/PycharmProjects/equality_manofld/methods/baseline_udf/plots.py:532: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+  plt.legend()
+[ur5_proj_err] before mean=80.197 deg, after mean=16.410 deg
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/delta_all_6d/delta/6d_spatial_arm_up_n6_delta_proj_value_distribution.png
+[done] method=delta dataset=6d_spatial_arm_up_n6 seed=173 proj_dist=0.200390 recall=nan FPrate=0.012695
+[run] method=delta dataset=6d_spatial_arm_up_n6_py seed=173
+[data][ur5_py] target=2048, max_tries=61440
+[data][ur5_py] tries=1, accepted=1/2048
+[data][ur5_py] tries=20, accepted=17/2048
+[data][ur5_py] tries=40, accepted=35/2048
+[data][ur5_py] tries=80, accepted=71/2048
+[data][ur5_py] tries=100, accepted=91/2048
+[data][ur5_py] tries=120, accepted=111/2048
+[data][ur5_py] tries=160, accepted=146/2048
+[data][ur5_py] tries=180, accepted=164/2048
+[data][ur5_py] tries=200, accepted=180/2048
+[data][ur5_py] tries=220, accepted=198/2048
+[data][ur5_py] tries=240, accepted=215/2048
+[data][ur5_py] tries=260, accepted=233/2048
+[data][ur5_py] tries=280, accepted=251/2048
+[data][ur5_py] tries=300, accepted=270/2048
+[data][ur5_py] tries=320, accepted=288/2048
+[data][ur5_py] tries=340, accepted=307/2048
+[data][ur5_py] tries=360, accepted=326/2048
+[data][ur5_py] tries=380, accepted=345/2048
+[data][ur5_py] tries=400, accepted=364/2048
+[data][ur5_py] tries=420, accepted=383/2048
+[data][ur5_py] tries=440, accepted=399/2048
+[data][ur5_py] tries=460, accepted=419/2048
+[data][ur5_py] tries=480, accepted=438/2048
+[data][ur5_py] tries=500, accepted=455/2048
+[data][ur5_py] tries=520, accepted=474/2048
+[data][ur5_py] tries=540, accepted=488/2048
+[data][ur5_py] tries=560, accepted=507/2048
+[data][ur5_py] tries=580, accepted=523/2048
+[data][ur5_py] tries=600, accepted=540/2048
+[data][ur5_py] tries=620, accepted=560/2048
+[data][ur5_py] tries=640, accepted=576/2048
+[data][ur5_py] tries=660, accepted=593/2048
+[data][ur5_py] tries=680, accepted=612/2048
+[data][ur5_py] tries=700, accepted=628/2048
+[data][ur5_py] tries=720, accepted=645/2048
+[data][ur5_py] tries=740, accepted=663/2048
+[data][ur5_py] tries=780, accepted=700/2048
+[data][ur5_py] tries=800, accepted=718/2048
+[data][ur5_py] tries=820, accepted=737/2048
+[data][ur5_py] tries=840, accepted=754/2048
+[data][ur5_py] tries=860, accepted=771/2048
+[data][ur5_py] tries=880, accepted=788/2048
+[data][ur5_py] tries=900, accepted=806/2048
+[data][ur5_py] tries=920, accepted=825/2048
+[data][ur5_py] tries=940, accepted=845/2048
+[data][ur5_py] tries=960, accepted=862/2048
+[data][ur5_py] tries=980, accepted=882/2048
+[data][ur5_py] tries=1020, accepted=917/2048
+[data][ur5_py] tries=1040, accepted=933/2048
+[data][ur5_py] tries=1060, accepted=951/2048
+[data][ur5_py] tries=1080, accepted=970/2048
+[data][ur5_py] tries=1100, accepted=986/2048
+[data][ur5_py] tries=1120, accepted=1005/2048
+[data][ur5_py] tries=1140, accepted=1023/2048
+[data][ur5_py] tries=1160, accepted=1042/2048
+[data][ur5_py] tries=1180, accepted=1061/2048
+[data][ur5_py] tries=1200, accepted=1080/2048
+[data][ur5_py] tries=1240, accepted=1114/2048
+[data][ur5_py] tries=1280, accepted=1149/2048
+[data][ur5_py] tries=1300, accepted=1166/2048
+[data][ur5_py] tries=1320, accepted=1185/2048
+[data][ur5_py] tries=1340, accepted=1200/2048
+[data][ur5_py] tries=1360, accepted=1218/2048
+[data][ur5_py] tries=1380, accepted=1236/2048
+[data][ur5_py] tries=1400, accepted=1253/2048
+[data][ur5_py] tries=1420, accepted=1271/2048
+[data][ur5_py] tries=1440, accepted=1289/2048
+[data][ur5_py] tries=1460, accepted=1307/2048
+[data][ur5_py] tries=1480, accepted=1324/2048
+[data][ur5_py] tries=1500, accepted=1344/2048
+[data][ur5_py] tries=1520, accepted=1361/2048
+[data][ur5_py] tries=1540, accepted=1378/2048
+[data][ur5_py] tries=1560, accepted=1394/2048
+[data][ur5_py] tries=1580, accepted=1412/2048
+[data][ur5_py] tries=1600, accepted=1430/2048
+[data][ur5_py] tries=1620, accepted=1445/2048
+[data][ur5_py] tries=1640, accepted=1463/2048
+[data][ur5_py] tries=1660, accepted=1479/2048
+[data][ur5_py] tries=1680, accepted=1499/2048
+[data][ur5_py] tries=1700, accepted=1518/2048
+[data][ur5_py] tries=1720, accepted=1537/2048
+[data][ur5_py] tries=1740, accepted=1554/2048
+[data][ur5_py] tries=1780, accepted=1588/2048
+[data][ur5_py] tries=1800, accepted=1608/2048
+[data][ur5_py] tries=1820, accepted=1627/2048
+[data][ur5_py] tries=1840, accepted=1646/2048
+[data][ur5_py] tries=1860, accepted=1666/2048
+[data][ur5_py] tries=1880, accepted=1685/2048
+[data][ur5_py] tries=1900, accepted=1704/2048
+[data][ur5_py] tries=1960, accepted=1753/2048
+[data][ur5_py] tries=1980, accepted=1771/2048
+[data][ur5_py] tries=2000, accepted=1791/2048
+[data][ur5_py] tries=2020, accepted=1810/2048
+[data][ur5_py] tries=2040, accepted=1829/2048
+[data][ur5_py] tries=2060, accepted=1849/2048
+[data][ur5_py] tries=2080, accepted=1868/2048
+[data][ur5_py] tries=2100, accepted=1887/2048
+[data][ur5_py] tries=2120, accepted=1906/2048
+[data][ur5_py] tries=2140, accepted=1924/2048
+[data][ur5_py] tries=2160, accepted=1941/2048
+[data][ur5_py] tries=2180, accepted=1959/2048
+[data][ur5_py] tries=2200, accepted=1977/2048
+[data][ur5_py] tries=2220, accepted=1994/2048
+[data][ur5_py] tries=2240, accepted=2014/2048
+[data][ur5_py] tries=2260, accepted=2033/2048
+[data][ur5_py] target=1, max_tries=300
+[data][ur5_py] tries=1, accepted=1/1
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.108086 | on=0.031073 | off=0.077013
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.088408 | on=0.024392 | off=0.064015
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.111917 | on=0.025060 | off=0.086857
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.117559 | on=0.022622 | off=0.094937
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.080248 | on=0.020132 | off=0.060116
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.083296 | on=0.013836 | off=0.069460
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.044216 | on=0.009734 | off=0.034482
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.052563 | on=0.013520 | off=0.039042
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.082032 | on=0.012021 | off=0.070010
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.059821 | on=0.016941 | off=0.042880
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.053361 | on=0.018380 | off=0.034981
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.040601 | on=0.007563 | off=0.033037
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.053568 | on=0.008407 | off=0.045161
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.049125 | on=0.008279 | off=0.040846
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.041338 | on=0.005257 | off=0.036081
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.045877 | on=0.010611 | off=0.035266
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.042926 | on=0.008115 | off=0.034811
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.033483 | on=0.005113 | off=0.028370
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.046873 | on=0.007148 | off=0.039725
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.037605 | on=0.005546 | off=0.032059
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.028805 | on=0.006202 | off=0.022602
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.028592 | on=0.005821 | off=0.022771
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.026551 | on=0.004583 | off=0.021967
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.027058 | on=0.004389 | off=0.022669
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.020690 | on=0.003654 | off=0.017036
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.029734 | on=0.004617 | off=0.025117
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.019178 | on=0.003784 | off=0.015393
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.021925 | on=0.002962 | off=0.018963
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.023497 | on=0.004527 | off=0.018970
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.030231 | on=0.005698 | off=0.024533
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.024061 | on=0.002410 | off=0.021650
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.015955 | on=0.003212 | off=0.012743
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.011597 | on=0.001728 | off=0.009870
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.019341 | on=0.002935 | off=0.016406
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.018981 | on=0.003256 | off=0.015724
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.015635 | on=0.002000 | off=0.013635
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.023471 | on=0.002706 | off=0.020764
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.015952 | on=0.003721 | off=0.012231
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.014877 | on=0.003467 | off=0.011410
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.016352 | on=0.002220 | off=0.014133
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.014541 | on=0.001460 | off=0.013082
+[eval] 6d_spatial_arm_up_n6_py | proj_dist=0.377526 | pred_recall=nan | pred_FPrate=0.006592 | chamfer=0.468645 | gt->learned=0.081914 | learned->gt=0.386731 | space=workspace
+/home/baiyu/PycharmProjects/equality_manofld/methods/baseline_udf/plots.py:532: UserWarning: No artists with labels found to put in legend.  Note that artists whose label start with an underscore are ignored when legend() is called with no argument.
+  plt.legend()
+[ur5_proj_err] before mean=84.705 deg, after mean=22.596 deg
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/delta_all_6d/delta/6d_spatial_arm_up_n6_py_delta_proj_value_distribution.png
+[done] method=delta dataset=6d_spatial_arm_up_n6_py seed=173 proj_dist=0.377526 recall=nan FPrate=0.006592
+[run] method=delta dataset=6d_workspace_sine_surface_pose seed=173
+[train] method=delta ep=   1/2000 | lr=3.00e-04 | loss=0.123744 | on=0.032272 | off=0.091472
+[train] method=delta ep=  50/2000 | lr=3.00e-04 | loss=0.086092 | on=0.008513 | off=0.077579
+[train] method=delta ep= 100/2000 | lr=3.00e-04 | loss=0.067816 | on=0.004612 | off=0.063205
+[train] method=delta ep= 150/2000 | lr=3.00e-04 | loss=0.058950 | on=0.006390 | off=0.052559
+[train] method=delta ep= 200/2000 | lr=3.00e-04 | loss=0.043838 | on=0.002684 | off=0.041154
+[train] method=delta ep= 250/2000 | lr=3.00e-04 | loss=0.044594 | on=0.003600 | off=0.040995
+[train] method=delta ep= 300/2000 | lr=3.00e-04 | loss=0.046631 | on=0.002129 | off=0.044502
+[train] method=delta ep= 350/2000 | lr=3.00e-04 | loss=0.027358 | on=0.001853 | off=0.025505
+[train] method=delta ep= 400/2000 | lr=3.00e-04 | loss=0.032089 | on=0.001677 | off=0.030412
+[train] method=delta ep= 450/2000 | lr=3.00e-04 | loss=0.033181 | on=0.002425 | off=0.030756
+[train] method=delta ep= 500/2000 | lr=3.00e-04 | loss=0.025778 | on=0.001454 | off=0.024324
+[train] method=delta ep= 550/2000 | lr=3.00e-04 | loss=0.030167 | on=0.001503 | off=0.028664
+[train] method=delta ep= 600/2000 | lr=3.00e-04 | loss=0.029078 | on=0.001059 | off=0.028019
+[train] method=delta ep= 650/2000 | lr=3.00e-04 | loss=0.035970 | on=0.000854 | off=0.035116
+[train] method=delta ep= 700/2000 | lr=3.00e-04 | loss=0.031861 | on=0.002033 | off=0.029828
+[train] method=delta ep= 750/2000 | lr=3.00e-04 | loss=0.034107 | on=0.001135 | off=0.032972
+[train] method=delta ep= 800/2000 | lr=3.00e-04 | loss=0.023892 | on=0.000806 | off=0.023085
+[train] method=delta ep= 850/2000 | lr=3.00e-04 | loss=0.017641 | on=0.001222 | off=0.016419
+[train] method=delta ep= 900/2000 | lr=3.00e-04 | loss=0.020907 | on=0.001303 | off=0.019603
+[train] method=delta ep= 950/2000 | lr=3.00e-04 | loss=0.016977 | on=0.000878 | off=0.016099
+[train] method=delta ep=1000/2000 | lr=3.00e-04 | loss=0.017781 | on=0.000896 | off=0.016885
+[train] method=delta ep=1050/2000 | lr=3.00e-04 | loss=0.018077 | on=0.000522 | off=0.017555
+[train] method=delta ep=1100/2000 | lr=3.00e-04 | loss=0.010619 | on=0.001338 | off=0.009281
+[train] method=delta ep=1150/2000 | lr=3.00e-04 | loss=0.009230 | on=0.000864 | off=0.008367
+[train] method=delta ep=1200/2000 | lr=3.00e-04 | loss=0.007270 | on=0.001509 | off=0.005761
+[train] method=delta ep=1250/2000 | lr=3.00e-04 | loss=0.007016 | on=0.000915 | off=0.006101
+[train] method=delta ep=1300/2000 | lr=3.00e-04 | loss=0.005115 | on=0.000964 | off=0.004151
+[train] method=delta ep=1350/2000 | lr=3.00e-04 | loss=0.004843 | on=0.000699 | off=0.004144
+[train] method=delta ep=1400/2000 | lr=3.00e-04 | loss=0.004611 | on=0.000946 | off=0.003665
+[train] method=delta ep=1450/2000 | lr=3.00e-04 | loss=0.004981 | on=0.000748 | off=0.004233
+[train] method=delta ep=1500/2000 | lr=3.00e-04 | loss=0.004450 | on=0.000639 | off=0.003811
+[train] method=delta ep=1550/2000 | lr=3.00e-04 | loss=0.004687 | on=0.001016 | off=0.003671
+[train] method=delta ep=1600/2000 | lr=3.00e-04 | loss=0.005327 | on=0.000715 | off=0.004612
+[train] method=delta ep=1650/2000 | lr=3.00e-04 | loss=0.003445 | on=0.000459 | off=0.002986
+[train] method=delta ep=1700/2000 | lr=3.00e-04 | loss=0.002542 | on=0.000718 | off=0.001824
+[train] method=delta ep=1750/2000 | lr=3.00e-04 | loss=0.002917 | on=0.000710 | off=0.002207
+[train] method=delta ep=1800/2000 | lr=3.00e-04 | loss=0.002865 | on=0.000240 | off=0.002624
+[train] method=delta ep=1850/2000 | lr=3.00e-04 | loss=0.002006 | on=0.000286 | off=0.001719
+[train] method=delta ep=1900/2000 | lr=3.00e-04 | loss=0.002070 | on=0.000501 | off=0.001569
+[train] method=delta ep=1950/2000 | lr=3.00e-04 | loss=0.002554 | on=0.000386 | off=0.002168
+[train] method=delta ep=2000/2000 | lr=3.00e-04 | loss=0.001734 | on=0.000413 | off=0.001320
+[eval] 6d_workspace_sine_surface_pose | proj_dist=0.105483 | pred_recall=nan | pred_FPrate=0.001465 | chamfer=0.276156 | gt->learned=0.062906 | learned->gt=0.213250 | space=workspace
+[workspace_pose_err] pos_mean: 0.41735->0.06441, ang_mean_deg: 32.922->4.141
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/delta_all_6d/delta/6d_workspace_sine_surface_pose_delta_workspace_pose_proj_error_distributions.png
+[done] method=delta dataset=6d_workspace_sine_surface_pose seed=173 proj_dist=0.105483 recall=nan FPrate=0.001465
+[saved] /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/delta_all_6d/sweep_summary_delta_seed173.json
+[sweep] method=delta avg_metrics=17 over cases=3

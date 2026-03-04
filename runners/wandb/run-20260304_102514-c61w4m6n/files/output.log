@@ -1,0 +1,163 @@
+[run] method=vae dataset=6d_spatial_arm_up_n6_py seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[data][ur5_py] target=2048, max_tries=61440
+[data][ur5_py] tries=1, accepted=1/2048
+[data][ur5_py] tries=20, accepted=17/2048
+[data][ur5_py] tries=40, accepted=35/2048
+[data][ur5_py] tries=80, accepted=71/2048
+[data][ur5_py] tries=100, accepted=91/2048
+[data][ur5_py] tries=120, accepted=111/2048
+[data][ur5_py] tries=160, accepted=146/2048
+[data][ur5_py] tries=180, accepted=164/2048
+[data][ur5_py] tries=200, accepted=180/2048
+[data][ur5_py] tries=220, accepted=198/2048
+[data][ur5_py] tries=240, accepted=215/2048
+[data][ur5_py] tries=260, accepted=233/2048
+[data][ur5_py] tries=280, accepted=251/2048
+[data][ur5_py] tries=300, accepted=270/2048
+[data][ur5_py] tries=320, accepted=288/2048
+[data][ur5_py] tries=340, accepted=307/2048
+[data][ur5_py] tries=360, accepted=326/2048
+[data][ur5_py] tries=380, accepted=345/2048
+[data][ur5_py] tries=400, accepted=364/2048
+[data][ur5_py] tries=420, accepted=383/2048
+[data][ur5_py] tries=440, accepted=399/2048
+[data][ur5_py] tries=460, accepted=419/2048
+[data][ur5_py] tries=480, accepted=438/2048
+[data][ur5_py] tries=500, accepted=455/2048
+[data][ur5_py] tries=520, accepted=474/2048
+[data][ur5_py] tries=540, accepted=488/2048
+[data][ur5_py] tries=560, accepted=507/2048
+[data][ur5_py] tries=580, accepted=523/2048
+[data][ur5_py] tries=600, accepted=540/2048
+[data][ur5_py] tries=620, accepted=560/2048
+[data][ur5_py] tries=640, accepted=576/2048
+[data][ur5_py] tries=660, accepted=593/2048
+[data][ur5_py] tries=680, accepted=612/2048
+[data][ur5_py] tries=700, accepted=628/2048
+[data][ur5_py] tries=720, accepted=645/2048
+[data][ur5_py] tries=740, accepted=663/2048
+[data][ur5_py] tries=780, accepted=700/2048
+[data][ur5_py] tries=800, accepted=718/2048
+[data][ur5_py] tries=820, accepted=737/2048
+[data][ur5_py] tries=840, accepted=754/2048
+[data][ur5_py] tries=860, accepted=771/2048
+[data][ur5_py] tries=880, accepted=788/2048
+[data][ur5_py] tries=900, accepted=806/2048
+[data][ur5_py] tries=920, accepted=825/2048
+[data][ur5_py] tries=940, accepted=845/2048
+[data][ur5_py] tries=960, accepted=862/2048
+[data][ur5_py] tries=980, accepted=882/2048
+[data][ur5_py] tries=1020, accepted=917/2048
+[data][ur5_py] tries=1040, accepted=933/2048
+[data][ur5_py] tries=1060, accepted=951/2048
+[data][ur5_py] tries=1080, accepted=970/2048
+[data][ur5_py] tries=1100, accepted=986/2048
+[data][ur5_py] tries=1120, accepted=1005/2048
+[data][ur5_py] tries=1140, accepted=1023/2048
+[data][ur5_py] tries=1160, accepted=1042/2048
+[data][ur5_py] tries=1180, accepted=1061/2048
+[data][ur5_py] tries=1200, accepted=1080/2048
+[data][ur5_py] tries=1240, accepted=1114/2048
+[data][ur5_py] tries=1280, accepted=1149/2048
+[data][ur5_py] tries=1300, accepted=1166/2048
+[data][ur5_py] tries=1320, accepted=1185/2048
+[data][ur5_py] tries=1340, accepted=1200/2048
+[data][ur5_py] tries=1360, accepted=1218/2048
+[data][ur5_py] tries=1380, accepted=1236/2048
+[data][ur5_py] tries=1400, accepted=1253/2048
+[data][ur5_py] tries=1420, accepted=1271/2048
+[data][ur5_py] tries=1440, accepted=1289/2048
+[data][ur5_py] tries=1460, accepted=1307/2048
+[data][ur5_py] tries=1480, accepted=1324/2048
+[data][ur5_py] tries=1500, accepted=1344/2048
+[data][ur5_py] tries=1520, accepted=1361/2048
+[data][ur5_py] tries=1540, accepted=1378/2048
+[data][ur5_py] tries=1560, accepted=1394/2048
+[data][ur5_py] tries=1580, accepted=1412/2048
+[data][ur5_py] tries=1600, accepted=1430/2048
+[data][ur5_py] tries=1620, accepted=1445/2048
+[data][ur5_py] tries=1640, accepted=1463/2048
+[data][ur5_py] tries=1660, accepted=1479/2048
+[data][ur5_py] tries=1680, accepted=1499/2048
+[data][ur5_py] tries=1700, accepted=1518/2048
+[data][ur5_py] tries=1720, accepted=1537/2048
+[data][ur5_py] tries=1740, accepted=1554/2048
+[data][ur5_py] tries=1780, accepted=1588/2048
+[data][ur5_py] tries=1800, accepted=1608/2048
+[data][ur5_py] tries=1820, accepted=1627/2048
+[data][ur5_py] tries=1840, accepted=1646/2048
+[data][ur5_py] tries=1860, accepted=1666/2048
+[data][ur5_py] tries=1880, accepted=1685/2048
+[data][ur5_py] tries=1900, accepted=1704/2048
+[data][ur5_py] tries=1960, accepted=1753/2048
+[data][ur5_py] tries=1980, accepted=1771/2048
+[data][ur5_py] tries=2000, accepted=1791/2048
+[data][ur5_py] tries=2020, accepted=1810/2048
+[data][ur5_py] tries=2040, accepted=1829/2048
+[data][ur5_py] tries=2060, accepted=1849/2048
+[data][ur5_py] tries=2080, accepted=1868/2048
+[data][ur5_py] tries=2100, accepted=1887/2048
+[data][ur5_py] tries=2120, accepted=1906/2048
+[data][ur5_py] tries=2140, accepted=1924/2048
+[data][ur5_py] tries=2160, accepted=1941/2048
+[data][ur5_py] tries=2180, accepted=1959/2048
+[data][ur5_py] tries=2200, accepted=1977/2048
+[data][ur5_py] tries=2220, accepted=1994/2048
+[data][ur5_py] tries=2240, accepted=2014/2048
+[data][ur5_py] tries=2260, accepted=2033/2048
+[data][ur5_py] target=1, max_tries=300
+[data][ur5_py] tries=1, accepted=1/1
+[train] method=vae ep=   1/800 | lr=1.00e-03 | loss=3.084206 | recon=3.084204 | kl=0.108060 | beta=0.000
+[train] method=vae ep=  50/800 | lr=1.00e-03 | loss=0.147200 | recon=0.137215 | kl=9.984325 | beta=0.001
+[train] method=vae ep= 100/800 | lr=1.00e-03 | loss=0.068202 | recon=0.052890 | kl=7.656190 | beta=0.002
+[train] method=vae ep= 150/800 | lr=1.00e-03 | loss=0.047145 | recon=0.029239 | kl=5.968789 | beta=0.003
+[train] method=vae ep= 200/800 | lr=1.00e-03 | loss=0.042680 | recon=0.022605 | kl=5.018660 | beta=0.004
+[train] method=vae ep= 250/800 | lr=1.00e-03 | loss=0.042799 | recon=0.020339 | kl=4.491930 | beta=0.005
+[train] method=vae ep= 300/800 | lr=1.00e-03 | loss=0.042054 | recon=0.016745 | kl=4.218193 | beta=0.006
+[train] method=vae ep= 350/800 | lr=1.00e-03 | loss=0.043206 | recon=0.014913 | kl=4.041871 | beta=0.007
+[train] method=vae ep= 400/800 | lr=1.00e-03 | loss=0.046650 | recon=0.015743 | kl=3.863353 | beta=0.008
+[train] method=vae ep= 450/800 | lr=1.00e-03 | loss=0.048330 | recon=0.014561 | kl=3.752098 | beta=0.009
+[train] method=vae ep= 500/800 | lr=1.00e-03 | loss=0.054934 | recon=0.017946 | kl=3.698795 | beta=0.010
+[train] method=vae ep= 550/800 | lr=1.00e-03 | loss=0.051204 | recon=0.014553 | kl=3.665104 | beta=0.010
+[train] method=vae ep= 600/800 | lr=1.00e-03 | loss=0.053101 | recon=0.016843 | kl=3.625804 | beta=0.010
+[train] method=vae ep= 650/800 | lr=1.00e-03 | loss=0.049129 | recon=0.013115 | kl=3.601397 | beta=0.010
+[train] method=vae ep= 700/800 | lr=1.00e-03 | loss=0.048848 | recon=0.012677 | kl=3.617188 | beta=0.010
+[train] method=vae ep= 750/800 | lr=1.00e-03 | loss=0.049006 | recon=0.012984 | kl=3.602177 | beta=0.010
+[train] method=vae ep= 800/800 | lr=1.00e-03 | loss=0.048097 | recon=0.012342 | kl=3.575495 | beta=0.010
+[eval] 6d_spatial_arm_up_n6_py | proj_dist=0.509493 | pred_recall=nan | pred_FPrate=0.008545 | chamfer=0.612284 | gt->learned=0.094756 | learned->gt=0.517528 | space=workspace
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_spatial_arm_up_n6_py_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_spatial_arm_up_n6_py_vae_loss_curves.png
+/home/baiyu/PycharmProjects/equality_manofld/core/planner.py:839: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_spatial_arm_up_n6_py_vae_planning_demo.png
+[ur5_proj_err] before mean=84.705 deg, after mean=32.737 deg
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_spatial_arm_up_n6_py_vae_proj_value_distribution.png
+[done] method=vae dataset=6d_spatial_arm_up_n6_py seed=173 proj_dist=0.509493 recall=nan FPrate=0.008545
+[run] method=vae dataset=6d_workspace_sine_surface_pose seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/800 | lr=1.00e-03 | loss=1.032943 | recon=1.032941 | kl=0.051423 | beta=0.000
+[train] method=vae ep=  50/800 | lr=1.00e-03 | loss=0.006253 | recon=0.001735 | kl=4.517840 | beta=0.001
+[train] method=vae ep= 100/800 | lr=1.00e-03 | loss=0.009378 | recon=0.002168 | kl=3.605153 | beta=0.002
+[train] method=vae ep= 150/800 | lr=1.00e-03 | loss=0.012404 | recon=0.002584 | kl=3.273352 | beta=0.003
+[train] method=vae ep= 200/800 | lr=1.00e-03 | loss=0.015590 | recon=0.003017 | kl=3.143327 | beta=0.004
+[train] method=vae ep= 250/800 | lr=1.00e-03 | loss=0.019036 | recon=0.003960 | kl=3.015239 | beta=0.005
+[train] method=vae ep= 300/800 | lr=1.00e-03 | loss=0.021605 | recon=0.004012 | kl=2.932182 | beta=0.006
+[train] method=vae ep= 350/800 | lr=1.00e-03 | loss=0.024294 | recon=0.004554 | kl=2.819996 | beta=0.007
+[train] method=vae ep= 400/800 | lr=1.00e-03 | loss=0.027156 | recon=0.005159 | kl=2.749617 | beta=0.008
+[train] method=vae ep= 450/800 | lr=1.00e-03 | loss=0.029873 | recon=0.005583 | kl=2.698887 | beta=0.009
+[train] method=vae ep= 500/800 | lr=1.00e-03 | loss=0.032907 | recon=0.006520 | kl=2.638744 | beta=0.010
+[train] method=vae ep= 550/800 | lr=1.00e-03 | loss=0.032510 | recon=0.006167 | kl=2.634257 | beta=0.010
+[train] method=vae ep= 600/800 | lr=1.00e-03 | loss=0.032228 | recon=0.006095 | kl=2.613301 | beta=0.010
+[train] method=vae ep= 650/800 | lr=1.00e-03 | loss=0.032041 | recon=0.006112 | kl=2.592974 | beta=0.010
+[train] method=vae ep= 700/800 | lr=1.00e-03 | loss=0.032011 | recon=0.005884 | kl=2.612727 | beta=0.010
+[train] method=vae ep= 750/800 | lr=1.00e-03 | loss=0.032173 | recon=0.006180 | kl=2.599338 | beta=0.010
+[train] method=vae ep= 800/800 | lr=1.00e-03 | loss=0.031886 | recon=0.005976 | kl=2.590929 | beta=0.010
+[eval] 6d_workspace_sine_surface_pose | proj_dist=0.072518 | pred_recall=nan | pred_FPrate=0.002686 | chamfer=0.245354 | gt->learned=0.054963 | learned->gt=0.190391 | space=workspace
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_workspace_sine_surface_pose_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_workspace_sine_surface_pose_vae_loss_curves.png
+[workspace_pose_err] pos_mean: 0.41735->0.02708, ang_mean_deg: 32.922->3.643
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/vae/6d_workspace_sine_surface_pose_vae_workspace_pose_proj_error_distributions.png
+[done] method=vae dataset=6d_workspace_sine_surface_pose seed=173 proj_dist=0.072518 recall=nan FPrate=0.002686
+[saved] /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_6d/sweep_summary_vae_seed173.json
+[sweep] method=vae avg_metrics=17 over cases=2

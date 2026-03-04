@@ -1,0 +1,21 @@
+{"time":"2026-03-03T17:27:19.978362545+01:00","level":"INFO","msg":"using version","core version":"0.18.2"}
+{"time":"2026-03-03T17:27:19.978369699+01:00","level":"INFO","msg":"created symlink","path":"/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260303_172719-ehofye56/logs/debug-core.log"}
+{"time":"2026-03-03T17:27:19.979222738+01:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2026-03-03T17:27:19.981065517+01:00","level":"INFO","msg":"created new stream","id":"ehofye56"}
+{"time":"2026-03-03T17:27:19.9810804+01:00","level":"INFO","msg":"stream: started","id":"ehofye56"}
+{"time":"2026-03-03T17:27:19.981084865+01:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:27:19.98108362+01:00","level":"INFO","msg":"handler: started","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:27:19.98108374+01:00","level":"INFO","msg":"sender: started","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:27:20.235113641+01:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2026-03-03T17:27:20.235947963+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-03-03T17:28:49.357970381+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2026-03-03T17:28:49.359446299+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2026-03-03T17:28:49.61129623+01:00","level":"WARN","msg":"No job ingredients found, not creating job artifact"}
+{"time":"2026-03-03T17:28:49.61131397+01:00","level":"WARN","msg":"No source type found, not creating job artifact"}
+{"time":"2026-03-03T17:28:49.611322295+01:00","level":"INFO","msg":"sender: sendDefer: no job artifact to save"}
+{"time":"2026-03-03T17:28:50.265910831+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-03T17:28:51.687939862+01:00","level":"INFO","msg":"stream: closing","id":"ehofye56"}
+{"time":"2026-03-03T17:28:51.687951857+01:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:28:51.687966914+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:28:51.687997533+01:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"ehofye56"}}
+{"time":"2026-03-03T17:28:51.688000915+01:00","level":"INFO","msg":"stream: closed","id":"ehofye56"}

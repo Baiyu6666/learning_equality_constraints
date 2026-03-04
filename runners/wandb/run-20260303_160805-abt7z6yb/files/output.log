@@ -1,0 +1,58 @@
+[run] method=eikonal dataset=2d_planar_arm_line_n2 seed=173
+[run] start dataset=2d_planar_arm_line_n2
+[run] dataset ready: data_dim=2, n_train=128
+[codim-auto] 2d_planar_arm_line_n2: estimated=1, true=1, mode_frac=1.000, k=5, n_sample=26, const_axes=0, d_eff=2
+[train] method=eikonal ep=   1/2000 | lr=1.50e-04 | f1=0.0955 | |grad f1|=0.0223 | ortho=0.00000
+[train] method=eikonal ep=  50/2000 | lr=1.50e-04 | f1=0.0765 | |grad f1|=0.1487 | ortho=0.00000
+[train] method=eikonal ep= 100/2000 | lr=1.50e-04 | f1=0.1271 | |grad f1|=0.3071 | ortho=0.00000
+[train] method=eikonal ep= 150/2000 | lr=1.50e-04 | f1=0.1053 | |grad f1|=0.3951 | ortho=0.00000
+[train] method=eikonal ep= 200/2000 | lr=1.50e-04 | f1=0.1062 | |grad f1|=0.5561 | ortho=0.00000
+[train] method=eikonal ep= 250/2000 | lr=1.50e-04 | f1=0.0781 | |grad f1|=0.7602 | ortho=0.00000
+[train] method=eikonal ep= 300/2000 | lr=1.50e-04 | f1=0.0493 | |grad f1|=0.9218 | ortho=0.00000
+[train] method=eikonal ep= 350/2000 | lr=1.50e-04 | f1=0.0361 | |grad f1|=0.9753 | ortho=0.00000
+[train] method=eikonal ep= 400/2000 | lr=1.50e-04 | f1=0.0311 | |grad f1|=0.9993 | ortho=0.00000
+[train] method=eikonal ep= 450/2000 | lr=1.50e-04 | f1=0.0296 | |grad f1|=1.0059 | ortho=0.00000
+[train] method=eikonal ep= 500/2000 | lr=1.50e-04 | f1=0.0280 | |grad f1|=1.0053 | ortho=0.00000
+[train] method=eikonal ep= 550/2000 | lr=1.50e-04 | f1=0.0263 | |grad f1|=1.0190 | ortho=0.00000
+[train] method=eikonal ep= 600/2000 | lr=1.50e-04 | f1=0.0264 | |grad f1|=1.0189 | ortho=0.00000
+[train] method=eikonal ep= 650/2000 | lr=1.50e-04 | f1=0.0256 | |grad f1|=1.0225 | ortho=0.00000
+[train] method=eikonal ep= 700/2000 | lr=1.50e-04 | f1=0.0248 | |grad f1|=1.0229 | ortho=0.00000
+[train] method=eikonal ep= 750/2000 | lr=1.50e-04 | f1=0.0239 | |grad f1|=1.0257 | ortho=0.00000
+[train] method=eikonal ep= 800/2000 | lr=1.50e-04 | f1=0.0230 | |grad f1|=1.0317 | ortho=0.00000
+[train] method=eikonal ep= 850/2000 | lr=1.50e-04 | f1=0.0231 | |grad f1|=1.0288 | ortho=0.00000
+[train] method=eikonal ep= 900/2000 | lr=1.50e-04 | f1=0.0215 | |grad f1|=1.0329 | ortho=0.00000
+[train] method=eikonal ep= 950/2000 | lr=1.50e-04 | f1=0.0212 | |grad f1|=1.0436 | ortho=0.00000
+[train] method=eikonal ep=1000/2000 | lr=1.50e-04 | f1=0.0207 | |grad f1|=1.0289 | ortho=0.00000
+[train] method=eikonal ep=1050/2000 | lr=7.50e-05 | f1=0.0204 | |grad f1|=1.0329 | ortho=0.00000
+[train] method=eikonal ep=1100/2000 | lr=7.50e-05 | f1=0.0197 | |grad f1|=1.0273 | ortho=0.00000
+[train] method=eikonal ep=1150/2000 | lr=7.50e-05 | f1=0.0199 | |grad f1|=1.0339 | ortho=0.00000
+[train] method=eikonal ep=1200/2000 | lr=7.50e-05 | f1=0.0198 | |grad f1|=1.0331 | ortho=0.00000
+[train] method=eikonal ep=1250/2000 | lr=7.50e-05 | f1=0.0197 | |grad f1|=1.0325 | ortho=0.00000
+[train] method=eikonal ep=1300/2000 | lr=7.50e-05 | f1=0.0193 | |grad f1|=1.0352 | ortho=0.00000
+[train] method=eikonal ep=1350/2000 | lr=7.50e-05 | f1=0.0191 | |grad f1|=1.0370 | ortho=0.00000
+[train] method=eikonal ep=1400/2000 | lr=7.50e-05 | f1=0.0185 | |grad f1|=1.0394 | ortho=0.00000
+[train] method=eikonal ep=1450/2000 | lr=7.50e-05 | f1=0.0181 | |grad f1|=1.0310 | ortho=0.00000
+[train] method=eikonal ep=1500/2000 | lr=7.50e-05 | f1=0.0185 | |grad f1|=1.0358 | ortho=0.00000
+[train] method=eikonal ep=1550/2000 | lr=7.50e-05 | f1=0.0177 | |grad f1|=1.0384 | ortho=0.00000
+[train] method=eikonal ep=1600/2000 | lr=7.50e-05 | f1=0.0177 | |grad f1|=1.0432 | ortho=0.00000
+[train] method=eikonal ep=1650/2000 | lr=7.50e-05 | f1=0.0172 | |grad f1|=1.0381 | ortho=0.00000
+[train] method=eikonal ep=1700/2000 | lr=7.50e-05 | f1=0.0170 | |grad f1|=1.0342 | ortho=0.00000
+[train] method=eikonal ep=1750/2000 | lr=7.50e-05 | f1=0.0168 | |grad f1|=1.0326 | ortho=0.00000
+[train] method=eikonal ep=1800/2000 | lr=7.50e-05 | f1=0.0167 | |grad f1|=1.0333 | ortho=0.00000
+[train] method=eikonal ep=1850/2000 | lr=7.50e-05 | f1=0.0162 | |grad f1|=1.0343 | ortho=0.00000
+[train] method=eikonal ep=1900/2000 | lr=7.50e-05 | f1=0.0156 | |grad f1|=1.0365 | ortho=0.00000
+[train] method=eikonal ep=1950/2000 | lr=7.50e-05 | f1=0.0157 | |grad f1|=1.0414 | ortho=0.00000
+[train] method=eikonal ep=2000/2000 | lr=7.50e-05 | f1=0.0149 | |grad f1|=1.0322 | ortho=0.00000
+[run] training finished: dataset=2d_planar_arm_line_n2
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/eikonal/2d_planar_arm_line_n2_on_eikonal_model.pt
+[eval] 2d_planar_arm_line_n2 | proj_dist=0.037105 | pred_recall=0.518248 | pred_FPrate=0.008588 | chamfer=0.046275 | gt->learned=0.008499 | learned->gt=0.037776 | space=workspace
+[eval] 2d_planar_arm_line_n2 | proj_steps=19.06 | proj_true_dist=0.357653 | proj_v_residual=0.014324 | eval_eps=0.029454 | pred_precision=0.676190
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/eikonal/2d_planar_arm_line_n2_on_eikonal_eval.json
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/eikonal/2d_planar_arm_line_n2_on_eikonal_training_diag.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/eikonal/2d_planar_arm_line_n2_on_eikonal_contour_traj.png
+/home/baiyu/PycharmProjects/equality_manofld/methods/vector_eikonal/plots.py:929: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/eikonal/2d_planar_arm_line_n2_on_eikonal_planning_demo.png
+[done] method=eikonal dataset=2d_planar_arm_line_n2 seed=173 proj_dist=0.037105 recall=0.518248 FPrate=0.008588
+[saved] /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/eikonal_all_2d/sweep_summary_eikonal_seed173.json
+[sweep] method=eikonal avg_metrics=18 over cases=1

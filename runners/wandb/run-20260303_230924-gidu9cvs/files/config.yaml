@@ -1,0 +1,733 @@
+_wandb:
+    value:
+        cli_version: 0.18.2
+        m: []
+        python_version: 3.10.18
+        t:
+            "1":
+                - 1
+                - 51
+                - 55
+            "2":
+                - 1
+                - 51
+                - 55
+            "3":
+                - 2
+                - 18
+                - 23
+                - 55
+            "4": 3.10.18
+            "5": 0.18.2
+            "8":
+                - 5
+            "12": 0.18.2
+            "13": linux-x86_64
+resolved__eikonal__2d_ellipse__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_ellipse__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_ellipse__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_ellipse__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_ellipse__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_ellipse__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_ellipse__cfg__depth:
+    value: 3
+resolved__eikonal__2d_ellipse__cfg__device:
+    value: cuda
+resolved__eikonal__2d_ellipse__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_ellipse__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_ellipse__cfg__epochs:
+    value: 1200
+resolved__eikonal__2d_ellipse__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_ellipse__cfg__lam_eikonal:
+    value: 0.25
+resolved__eikonal__2d_ellipse__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_ellipse__cfg__lr:
+    value: 0.0002
+resolved__eikonal__2d_ellipse__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_ellipse__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_ellipse__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_ellipse__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_ellipse__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_ellipse__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_ellipse__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_ellipse__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_ellipse__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_ellipse__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_ellipse__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_ellipse__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_ellipse__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_ellipse__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_ellipse__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_ellipse__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_ellipse__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_ellipse__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_ellipse__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_ellipse__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_ellipse__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_ellipse__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_ellipse__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_ellipse__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_ellipse__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_ellipse__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_ellipse__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_ellipse__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_ellipse__cfg__seed:
+    value: 173
+resolved__eikonal__2d_ellipse__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_ellipse__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_ellipse__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_ellipse__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_ellipse__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_ellipse__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_ellipse__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_ellipse__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_ellipse__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_ellipse__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_ellipse.json
+resolved__eikonal__2d_ellipse__loaded_layers_count:
+    value: 3
+resolved__eikonal__2d_ellipse__seed:
+    value: 173
+resolved__eikonal__2d_figure_eight__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_figure_eight__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_figure_eight__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_figure_eight__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_figure_eight__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_figure_eight__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_figure_eight__cfg__depth:
+    value: 3
+resolved__eikonal__2d_figure_eight__cfg__device:
+    value: cuda
+resolved__eikonal__2d_figure_eight__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_figure_eight__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_figure_eight__cfg__epochs:
+    value: 3000
+resolved__eikonal__2d_figure_eight__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_figure_eight__cfg__lam_eikonal:
+    value: 0.2
+resolved__eikonal__2d_figure_eight__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_figure_eight__cfg__lr:
+    value: 0.0002
+resolved__eikonal__2d_figure_eight__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_figure_eight__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_figure_eight__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_figure_eight__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_figure_eight__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_figure_eight__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_figure_eight__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_figure_eight__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_figure_eight__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_figure_eight__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_figure_eight__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_figure_eight__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_figure_eight__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_figure_eight__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_figure_eight__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_figure_eight__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_figure_eight__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_figure_eight__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_figure_eight__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_figure_eight__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_figure_eight__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_figure_eight__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_figure_eight__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_figure_eight__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_figure_eight__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_figure_eight__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_figure_eight__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_figure_eight__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_figure_eight__cfg__seed:
+    value: 173
+resolved__eikonal__2d_figure_eight__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_figure_eight__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_figure_eight__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_figure_eight__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_figure_eight__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_figure_eight__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_figure_eight__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_figure_eight__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_figure_eight__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_figure_eight__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_figure_eight.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/eikonal_2d_figure_eight.json
+resolved__eikonal__2d_figure_eight__loaded_layers_count:
+    value: 4
+resolved__eikonal__2d_figure_eight__seed:
+    value: 173
+resolved__eikonal__2d_looped_spiro__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_looped_spiro__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_looped_spiro__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_looped_spiro__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_looped_spiro__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_looped_spiro__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_looped_spiro__cfg__depth:
+    value: 3
+resolved__eikonal__2d_looped_spiro__cfg__device:
+    value: cuda
+resolved__eikonal__2d_looped_spiro__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_looped_spiro__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_looped_spiro__cfg__epochs:
+    value: 2000
+resolved__eikonal__2d_looped_spiro__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_looped_spiro__cfg__lam_eikonal:
+    value: 0.12
+resolved__eikonal__2d_looped_spiro__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_looped_spiro__cfg__lr:
+    value: 0.0002
+resolved__eikonal__2d_looped_spiro__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_looped_spiro__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_looped_spiro__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_looped_spiro__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_looped_spiro__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_looped_spiro__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_looped_spiro__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_looped_spiro__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_looped_spiro__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_looped_spiro__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_looped_spiro__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_looped_spiro__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_looped_spiro__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_looped_spiro__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_looped_spiro__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_looped_spiro__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_looped_spiro__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_looped_spiro__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_looped_spiro__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_looped_spiro__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_looped_spiro__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_looped_spiro__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_looped_spiro__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_looped_spiro__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_looped_spiro__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_looped_spiro__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_looped_spiro__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_looped_spiro__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_looped_spiro__cfg__seed:
+    value: 173
+resolved__eikonal__2d_looped_spiro__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_looped_spiro__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_looped_spiro__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_looped_spiro__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_looped_spiro__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_looped_spiro__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_looped_spiro__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_looped_spiro__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_looped_spiro__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_looped_spiro__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_looped_spiro.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/eikonal_2d_looped_spiro.json
+resolved__eikonal__2d_looped_spiro__loaded_layers_count:
+    value: 4
+resolved__eikonal__2d_looped_spiro__seed:
+    value: 173
+resolved__eikonal__2d_planar_arm_line_n2__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_planar_arm_line_n2__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_planar_arm_line_n2__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_planar_arm_line_n2__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_planar_arm_line_n2__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_planar_arm_line_n2__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_planar_arm_line_n2__cfg__depth:
+    value: 3
+resolved__eikonal__2d_planar_arm_line_n2__cfg__device:
+    value: cuda
+resolved__eikonal__2d_planar_arm_line_n2__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_planar_arm_line_n2__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_planar_arm_line_n2__cfg__epochs:
+    value: 2000
+resolved__eikonal__2d_planar_arm_line_n2__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_planar_arm_line_n2__cfg__lam_eikonal:
+    value: 0.12
+resolved__eikonal__2d_planar_arm_line_n2__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_planar_arm_line_n2__cfg__lr:
+    value: 0.00015
+resolved__eikonal__2d_planar_arm_line_n2__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_planar_arm_line_n2__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_planar_arm_line_n2__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_planar_arm_line_n2__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_planar_arm_line_n2__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_planar_arm_line_n2__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_planar_arm_line_n2__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_planar_arm_line_n2__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_planar_arm_line_n2__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_planar_arm_line_n2__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_planar_arm_line_n2__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_planar_arm_line_n2__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_planar_arm_line_n2__cfg__seed:
+    value: 173
+resolved__eikonal__2d_planar_arm_line_n2__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_planar_arm_line_n2__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_planar_arm_line_n2__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_planar_arm_line_n2__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_planar_arm_line_n2__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_planar_arm_line_n2__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_planar_arm_line_n2__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_planar_arm_line_n2__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_planar_arm_line_n2__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_planar_arm_line_n2__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_planar_arm_line_n2.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/eikonal_2d_planar_arm_line_n2.json
+resolved__eikonal__2d_planar_arm_line_n2__loaded_layers_count:
+    value: 4
+resolved__eikonal__2d_planar_arm_line_n2__seed:
+    value: 173
+resolved__eikonal__2d_sparse_sine__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_sparse_sine__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_sparse_sine__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_sparse_sine__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_sparse_sine__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_sparse_sine__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_sparse_sine__cfg__depth:
+    value: 3
+resolved__eikonal__2d_sparse_sine__cfg__device:
+    value: cuda
+resolved__eikonal__2d_sparse_sine__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_sparse_sine__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_sparse_sine__cfg__epochs:
+    value: 1200
+resolved__eikonal__2d_sparse_sine__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_sparse_sine__cfg__lam_eikonal:
+    value: 0.25
+resolved__eikonal__2d_sparse_sine__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_sparse_sine__cfg__lr:
+    value: 0.0002
+resolved__eikonal__2d_sparse_sine__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_sparse_sine__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_sparse_sine__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_sparse_sine__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_sparse_sine__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_sparse_sine__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_sparse_sine__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_sparse_sine__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_sparse_sine__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_sparse_sine__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_sparse_sine__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_sparse_sine__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_sparse_sine__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_sparse_sine__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_sparse_sine__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_sparse_sine__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_sparse_sine__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_sparse_sine__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_sparse_sine__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_sparse_sine__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_sparse_sine__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_sparse_sine__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_sparse_sine__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_sparse_sine__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_sparse_sine__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_sparse_sine__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_sparse_sine__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_sparse_sine__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_sparse_sine__cfg__seed:
+    value: 173
+resolved__eikonal__2d_sparse_sine__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_sparse_sine__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_sparse_sine__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_sparse_sine__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_sparse_sine__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_sparse_sine__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_sparse_sine__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_sparse_sine__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_sparse_sine__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_sparse_sine__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_sparse_sine.json
+resolved__eikonal__2d_sparse_sine__loaded_layers_count:
+    value: 3
+resolved__eikonal__2d_sparse_sine__seed:
+    value: 173
+resolved__eikonal__2d_square__cfg__batch_size:
+    value: 128
+resolved__eikonal__2d_square__cfg__codim_auto_const_axis_std_ratio:
+    value: 0.001
+resolved__eikonal__2d_square__cfg__codim_auto_k_neighbors:
+    value: 5
+resolved__eikonal__2d_square__cfg__codim_auto_sample_ratio:
+    value: 0.2
+resolved__eikonal__2d_square__cfg__codim_auto_strict_check:
+    value: true
+resolved__eikonal__2d_square__cfg__constraint_dim:
+    value: auto
+resolved__eikonal__2d_square__cfg__depth:
+    value: 3
+resolved__eikonal__2d_square__cfg__device:
+    value: cuda
+resolved__eikonal__2d_square__cfg__eikonal_near_ratio:
+    value: 0.85
+resolved__eikonal__2d_square__cfg__eikonal_near_std_ratio:
+    value: 0.05
+resolved__eikonal__2d_square__cfg__epochs:
+    value: 2000
+resolved__eikonal__2d_square__cfg__hidden:
+    value:
+        - 64
+        - 32
+resolved__eikonal__2d_square__cfg__lam_eikonal:
+    value: 0.12
+resolved__eikonal__2d_square__cfg__lam_eikonal_ortho:
+    value: 1
+resolved__eikonal__2d_square__cfg__lr:
+    value: 0.0002
+resolved__eikonal__2d_square__cfg__lr_decay_gamma:
+    value: 0.5
+resolved__eikonal__2d_square__cfg__lr_decay_step:
+    value: 1000
+resolved__eikonal__2d_square__cfg__metric_eval_every:
+    value: 1
+resolved__eikonal__2d_square__cfg__n_grid:
+    value: 4096
+resolved__eikonal__2d_square__cfg__n_train:
+    value: 128
+resolved__eikonal__2d_square__cfg__planner__anim_fps:
+    value: 6
+resolved__eikonal__2d_square__cfg__planner__anim_stride:
+    value: 1
+resolved__eikonal__2d_square__cfg__planner__init_mode:
+    value: joint_spline
+resolved__eikonal__2d_square__cfg__planner__joint_mid_noise:
+    value: 0
+resolved__eikonal__2d_square__cfg__planner__lam_len_joint:
+    value: 0.4
+resolved__eikonal__2d_square__cfg__planner__lam_manifold:
+    value: 1
+resolved__eikonal__2d_square__cfg__planner__method:
+    value: trajectory_opt
+resolved__eikonal__2d_square__cfg__planner__opt_lam_smooth:
+    value: 0.2
+resolved__eikonal__2d_square__cfg__planner__opt_lr:
+    value: 0.01
+resolved__eikonal__2d_square__cfg__planner__opt_steps:
+    value: 1240
+resolved__eikonal__2d_square__cfg__planner__pair_max_ratio:
+    value: 0.35
+resolved__eikonal__2d_square__cfg__planner__pair_min_ratio:
+    value: 0.15
+resolved__eikonal__2d_square__cfg__planner__pair_tries:
+    value: 1200
+resolved__eikonal__2d_square__cfg__planner__pybullet_real_time_dt:
+    value: 0.06
+resolved__eikonal__2d_square__cfg__planner__pybullet_render:
+    value: false
+resolved__eikonal__2d_square__cfg__planner__save_gif:
+    value: false
+resolved__eikonal__2d_square__cfg__planner__trust_scale:
+    value: 0.8
+resolved__eikonal__2d_square__cfg__plot_train_max_points:
+    value: 1200
+resolved__eikonal__2d_square__cfg__plot_traj_max_count:
+    value: 24
+resolved__eikonal__2d_square__cfg__plot_traj_stride:
+    value: 2
+resolved__eikonal__2d_square__cfg__projector__alpha:
+    value: 0.3
+resolved__eikonal__2d_square__cfg__projector__min_steps:
+    value: 20
+resolved__eikonal__2d_square__cfg__projector__steps:
+    value: 80
+resolved__eikonal__2d_square__cfg__seed:
+    value: 173
+resolved__eikonal__2d_square__cfg__show_3d_plot:
+    value: true
+resolved__eikonal__2d_square__cfg__surface_eval_chunk:
+    value: 8192
+resolved__eikonal__2d_square__cfg__surface_max_points:
+    value: 5000
+resolved__eikonal__2d_square__cfg__surface_plot_n:
+    value: 28
+resolved__eikonal__2d_square__cfg__surface_use_marching_cubes:
+    value: true
+resolved__eikonal__2d_square__cfg__train_log_every:
+    value: 50
+resolved__eikonal__2d_square__cfg__train_min_axis_span_ratio:
+    value: 0.08
+resolved__eikonal__2d_square__cfg__train_sample_pad_ratio:
+    value: 0.6
+resolved__eikonal__2d_square__cfg__viz_proj_traj_count:
+    value: 64
+resolved__eikonal__2d_square__loaded_config_paths:
+    value:
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/base.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/methods/eikonal.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_square.json
+        - /home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/eikonal_2d_square.json
+resolved__eikonal__2d_square__loaded_layers_count:
+    value: 4
+resolved__eikonal__2d_square__seed:
+    value: 173
+seed:
+    value: 173

@@ -1,0 +1,21 @@
+{"time":"2026-03-04T09:56:53.310524947+01:00","level":"INFO","msg":"using version","core version":"0.18.2"}
+{"time":"2026-03-04T09:56:53.310540398+01:00","level":"INFO","msg":"created symlink","path":"/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_095653-dab8qjee/logs/debug-core.log"}
+{"time":"2026-03-04T09:56:53.312308364+01:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2026-03-04T09:56:53.315450108+01:00","level":"INFO","msg":"created new stream","id":"dab8qjee"}
+{"time":"2026-03-04T09:56:53.315467955+01:00","level":"INFO","msg":"stream: started","id":"dab8qjee"}
+{"time":"2026-03-04T09:56:53.315483232+01:00","level":"INFO","msg":"sender: started","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:56:53.315491843+01:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:56:53.315512816+01:00","level":"INFO","msg":"handler: started","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:56:53.591272247+01:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2026-03-04T09:56:53.591601581+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-03-04T09:57:49.259787865+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2026-03-04T09:57:49.261027717+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2026-03-04T09:57:49.516584342+01:00","level":"WARN","msg":"No job ingredients found, not creating job artifact"}
+{"time":"2026-03-04T09:57:49.516623161+01:00","level":"WARN","msg":"No source type found, not creating job artifact"}
+{"time":"2026-03-04T09:57:49.516634257+01:00","level":"INFO","msg":"sender: sendDefer: no job artifact to save"}
+{"time":"2026-03-04T09:57:50.60439205+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-04T09:57:51.892676437+01:00","level":"INFO","msg":"stream: closing","id":"dab8qjee"}
+{"time":"2026-03-04T09:57:51.892692216+01:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:57:51.892715978+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:57:51.892736554+01:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"dab8qjee"}}
+{"time":"2026-03-04T09:57:51.892761504+01:00","level":"INFO","msg":"stream: closed","id":"dab8qjee"}

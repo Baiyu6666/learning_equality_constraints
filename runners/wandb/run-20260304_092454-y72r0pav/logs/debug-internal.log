@@ -1,0 +1,21 @@
+{"time":"2026-03-04T09:24:55.000031484+01:00","level":"INFO","msg":"using version","core version":"0.18.2"}
+{"time":"2026-03-04T09:24:55.000048531+01:00","level":"INFO","msg":"created symlink","path":"/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_092454-y72r0pav/logs/debug-core.log"}
+{"time":"2026-03-04T09:24:55.002575108+01:00","level":"ERROR","msg":"dialing: google: could not find default credentials. See https://cloud.google.com/docs/authentication/external/set-up-adc for more information"}
+{"time":"2026-03-04T09:24:55.005928987+01:00","level":"INFO","msg":"created new stream","id":"y72r0pav"}
+{"time":"2026-03-04T09:24:55.005947559+01:00","level":"INFO","msg":"stream: started","id":"y72r0pav"}
+{"time":"2026-03-04T09:24:55.005986118+01:00","level":"INFO","msg":"handler: started","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:24:55.00600301+01:00","level":"INFO","msg":"sender: started","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:24:55.006032287+01:00","level":"INFO","msg":"writer: Do: started","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:24:55.299972433+01:00","level":"INFO","msg":"wandb-core","!BADKEY":null}
+{"time":"2026-03-04T09:24:55.300460143+01:00","level":"INFO","msg":"Starting system monitor"}
+{"time":"2026-03-04T09:25:56.24560615+01:00","level":"INFO","msg":"Stopping system monitor"}
+{"time":"2026-03-04T09:25:56.24673965+01:00","level":"INFO","msg":"Stopped system monitor"}
+{"time":"2026-03-04T09:25:56.65939836+01:00","level":"WARN","msg":"No job ingredients found, not creating job artifact"}
+{"time":"2026-03-04T09:25:56.6594383+01:00","level":"WARN","msg":"No source type found, not creating job artifact"}
+{"time":"2026-03-04T09:25:56.659447148+01:00","level":"INFO","msg":"sender: sendDefer: no job artifact to save"}
+{"time":"2026-03-04T09:25:57.887295358+01:00","level":"INFO","msg":"fileTransfer: Close: file transfer manager closed"}
+{"time":"2026-03-04T09:25:59.133513856+01:00","level":"INFO","msg":"stream: closing","id":"y72r0pav"}
+{"time":"2026-03-04T09:25:59.133539008+01:00","level":"INFO","msg":"handler: closed","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:25:59.133576501+01:00","level":"INFO","msg":"writer: Close: closed","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:25:59.13362889+01:00","level":"INFO","msg":"sender: closed","stream_id":{"value":"y72r0pav"}}
+{"time":"2026-03-04T09:25:59.133699059+01:00","level":"INFO","msg":"stream: closed","id":"y72r0pav"}

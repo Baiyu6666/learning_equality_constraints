@@ -1,0 +1,168 @@
+[run] method=vae dataset=2d_ellipse seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=1.240738 | recon=1.240737 | kl=0.012842 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.279813 | recon=0.247630 | kl=5.664241 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.215676 | recon=0.178451 | kl=3.275781 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.166653 | recon=0.109633 | kl=3.345187 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.139002 | recon=0.066946 | kl=3.170474 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.139948 | recon=0.056888 | kl=2.923733 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.161335 | recon=0.067363 | kl=2.756526 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.160847 | recon=0.056267 | kl=2.629445 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.157791 | recon=0.044850 | kl=2.484714 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.174546 | recon=0.057488 | kl=2.341151 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.148567 | recon=0.027645 | kl=2.418449 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.160449 | recon=0.040962 | kl=2.389739 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.155575 | recon=0.032521 | kl=2.461066 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.149372 | recon=0.031031 | kl=2.366812 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.143519 | recon=0.033509 | kl=2.200190 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.145099 | recon=0.030504 | kl=2.291905 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.139478 | recon=0.031144 | kl=2.166672 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.148626 | recon=0.036259 | kl=2.247336 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.145154 | recon=0.024225 | kl=2.418590 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.135907 | recon=0.019079 | kl=2.336571 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.138573 | recon=0.022415 | kl=2.323159 | beta=0.050
+[eval] 2d_ellipse | proj_dist=0.065463 | pred_recall=0.726027 | pred_FPrate=0.195058 | chamfer=0.177670 | gt->learned=0.111486 | learned->gt=0.066184 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_ellipse_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_ellipse_vae_loss_curves.png
+[done] method=vae dataset=2d_ellipse seed=173 proj_dist=0.065463 recall=0.726027 FPrate=0.195058
+[run] method=vae dataset=2d_figure_eight seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=0.531938 | recon=0.531936 | kl=0.010753 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.228983 | recon=0.204624 | kl=4.287186 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.074513 | recon=0.036658 | kl=3.331228 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.075593 | recon=0.027526 | kl=2.819936 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.083865 | recon=0.026887 | kl=2.507034 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.093786 | recon=0.024538 | kl=2.437523 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.104555 | recon=0.024833 | kl=2.338490 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.118410 | recon=0.029715 | kl=2.230064 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.131067 | recon=0.034084 | kl=2.133620 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.135209 | recon=0.031091 | kl=2.082374 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.135022 | recon=0.029502 | kl=2.110396 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.140586 | recon=0.040186 | kl=2.007998 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.126835 | recon=0.022323 | kl=2.090239 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.135835 | recon=0.036347 | kl=1.989764 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.126721 | recon=0.029713 | kl=1.940159 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.137792 | recon=0.029084 | kl=2.174161 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.131544 | recon=0.030803 | kl=2.014817 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.129885 | recon=0.022415 | kl=2.149396 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.131764 | recon=0.028996 | kl=2.055356 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.127252 | recon=0.027532 | kl=1.994398 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.127675 | recon=0.022227 | kl=2.108952 | beta=0.050
+[eval] 2d_figure_eight | proj_dist=0.069939 | pred_recall=0.801980 | pred_FPrate=0.282890 | chamfer=0.181557 | gt->learned=0.111296 | learned->gt=0.070261 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_figure_eight_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_figure_eight_vae_loss_curves.png
+[done] method=vae dataset=2d_figure_eight seed=173 proj_dist=0.069939 recall=0.801980 FPrate=0.282890
+[run] method=vae dataset=2d_looped_spiro seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=0.725796 | recon=0.725794 | kl=0.011324 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.288730 | recon=0.262749 | kl=4.572756 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.164588 | recon=0.127033 | kl=3.304812 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.148656 | recon=0.096326 | kl=3.070031 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.141896 | recon=0.074937 | kl=2.946213 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.133823 | recon=0.053563 | kl=2.825145 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.148495 | recon=0.058143 | kl=2.650341 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.156928 | recon=0.057657 | kl=2.495952 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.196331 | recon=0.085819 | kl=2.431264 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.223299 | recon=0.101792 | kl=2.430141 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.169598 | recon=0.055588 | kl=2.280191 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.172565 | recon=0.057675 | kl=2.297796 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.167157 | recon=0.046587 | kl=2.411414 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.168985 | recon=0.056660 | kl=2.246491 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.156766 | recon=0.042455 | kl=2.286225 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.169617 | recon=0.053956 | kl=2.313229 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.156757 | recon=0.037428 | kl=2.386590 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.178986 | recon=0.061570 | kl=2.348321 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.153188 | recon=0.040587 | kl=2.252025 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.166686 | recon=0.054300 | kl=2.247706 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.153488 | recon=0.033443 | kl=2.400894 | beta=0.050
+[eval] 2d_looped_spiro | proj_dist=0.106996 | pred_recall=0.834395 | pred_FPrate=0.173982 | chamfer=0.232701 | gt->learned=0.125444 | learned->gt=0.107257 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_looped_spiro_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_looped_spiro_vae_loss_curves.png
+[done] method=vae dataset=2d_looped_spiro seed=173 proj_dist=0.106996 recall=0.834395 FPrate=0.173982
+[run] method=vae dataset=2d_planar_arm_line_n2 seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=4.205045 | recon=4.205042 | kl=0.025840 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.944960 | recon=0.895350 | kl=8.731276 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.426504 | recon=0.364688 | kl=5.439791 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.411198 | recon=0.333638 | kl=4.550167 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.239309 | recon=0.149959 | kl=3.931414 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.205558 | recon=0.095689 | kl=3.867406 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.196291 | recon=0.070860 | kl=3.679295 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.208921 | recon=0.070711 | kl=3.475013 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.215342 | recon=0.061243 | kl=3.390166 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.267540 | recon=0.106587 | kl=3.219062 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.222059 | recon=0.059334 | kl=3.254481 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.216659 | recon=0.059784 | kl=3.137503 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.225374 | recon=0.064507 | kl=3.217350 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.224991 | recon=0.068490 | kl=3.130018 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.197214 | recon=0.045473 | kl=3.034818 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.209112 | recon=0.050237 | kl=3.177497 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.205973 | recon=0.049290 | kl=3.133651 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.215896 | recon=0.059346 | kl=3.130997 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.217353 | recon=0.064241 | kl=3.062240 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.197329 | recon=0.042688 | kl=3.092819 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.197759 | recon=0.045622 | kl=3.042733 | beta=0.050
+[eval] 2d_planar_arm_line_n2 | proj_dist=0.251405 | pred_recall=0.795620 | pred_FPrate=0.177570 | chamfer=0.306117 | gt->learned=0.054613 | learned->gt=0.251504 | space=workspace
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_planar_arm_line_n2_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_planar_arm_line_n2_vae_loss_curves.png
+/home/baiyu/PycharmProjects/equality_manofld/core/planner.py:839: UserWarning: FigureCanvasAgg is non-interactive, and thus cannot be shown
+  plt.show()
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_planar_arm_line_n2_vae_planning_demo.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_planar_arm_line_n2_vae_planning_demo.png
+[done] method=vae dataset=2d_planar_arm_line_n2 seed=173 proj_dist=0.251405 recall=0.795620 FPrate=0.177570
+[run] method=vae dataset=2d_sparse_sine seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=1.757728 | recon=1.757726 | kl=0.019260 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.111295 | recon=0.068324 | kl=7.562761 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.058673 | recon=0.013892 | kl=3.940700 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.064282 | recon=0.013788 | kl=2.962277 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.072914 | recon=0.013114 | kl=2.631208 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.093007 | recon=0.023073 | kl=2.461684 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.103433 | recon=0.026770 | kl=2.248775 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.129460 | recon=0.042716 | kl=2.180993 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.125184 | recon=0.025116 | kl=2.201509 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.148996 | recon=0.046088 | kl=2.058158 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.138821 | recon=0.035415 | kl=2.068110 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.133249 | recon=0.027287 | kl=2.119239 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.134278 | recon=0.028245 | kl=2.120664 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.128897 | recon=0.020931 | kl=2.159317 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.136693 | recon=0.031488 | kl=2.104104 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.131561 | recon=0.026209 | kl=2.107033 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.124521 | recon=0.017930 | kl=2.131812 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.132252 | recon=0.023642 | kl=2.172190 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.122385 | recon=0.017268 | kl=2.102339 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.132290 | recon=0.027720 | kl=2.091389 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.143256 | recon=0.040453 | kl=2.056051 | beta=0.050
+[eval] 2d_sparse_sine | proj_dist=0.040060 | pred_recall=0.757500 | pred_FPrate=0.080628 | chamfer=0.140189 | gt->learned=0.099204 | learned->gt=0.040985 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_sparse_sine_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_sparse_sine_vae_loss_curves.png
+[done] method=vae dataset=2d_sparse_sine seed=173 proj_dist=0.040060 recall=0.757500 FPrate=0.080628
+[run] method=vae dataset=2d_square seed=173
+[warn] ignore unsupported config keys for VAEConfig: ['wandb_enable', 'off_bank_size', 'off_bank_oversample']
+[train] method=vae ep=   1/1000 | lr=1.00e-03 | loss=0.681810 | recon=0.681809 | kl=0.011216 | beta=0.000
+[train] method=vae ep=  50/1000 | lr=1.00e-03 | loss=0.218222 | recon=0.195575 | kl=3.985896 | beta=0.006
+[train] method=vae ep= 100/1000 | lr=1.00e-03 | loss=0.099004 | recon=0.063803 | kl=3.097625 | beta=0.011
+[train] method=vae ep= 150/1000 | lr=1.00e-03 | loss=0.091777 | recon=0.044238 | kl=2.788983 | beta=0.017
+[train] method=vae ep= 200/1000 | lr=1.00e-03 | loss=0.080346 | recon=0.022618 | kl=2.540020 | beta=0.023
+[train] method=vae ep= 250/1000 | lr=1.00e-03 | loss=0.091680 | recon=0.022338 | kl=2.440828 | beta=0.028
+[train] method=vae ep= 300/1000 | lr=1.00e-03 | loss=0.106806 | recon=0.029336 | kl=2.272459 | beta=0.034
+[train] method=vae ep= 350/1000 | lr=1.00e-03 | loss=0.112548 | recon=0.024315 | kl=2.218445 | beta=0.040
+[train] method=vae ep= 400/1000 | lr=1.00e-03 | loss=0.123570 | recon=0.029883 | kl=2.061110 | beta=0.045
+[train] method=vae ep= 450/1000 | lr=1.00e-03 | loss=0.139088 | recon=0.032987 | kl=2.122008 | beta=0.050
+[train] method=vae ep= 500/1000 | lr=1.00e-03 | loss=0.140118 | recon=0.040015 | kl=2.002059 | beta=0.050
+[train] method=vae ep= 550/1000 | lr=1.00e-03 | loss=0.143384 | recon=0.042180 | kl=2.024085 | beta=0.050
+[train] method=vae ep= 600/1000 | lr=1.00e-03 | loss=0.130028 | recon=0.021883 | kl=2.162891 | beta=0.050
+[train] method=vae ep= 650/1000 | lr=1.00e-03 | loss=0.141612 | recon=0.037758 | kl=2.077075 | beta=0.050
+[train] method=vae ep= 700/1000 | lr=1.00e-03 | loss=0.130408 | recon=0.031669 | kl=1.974783 | beta=0.050
+[train] method=vae ep= 750/1000 | lr=1.00e-03 | loss=0.138774 | recon=0.030609 | kl=2.163295 | beta=0.050
+[train] method=vae ep= 800/1000 | lr=1.00e-03 | loss=0.131055 | recon=0.024610 | kl=2.128901 | beta=0.050
+[train] method=vae ep= 850/1000 | lr=1.00e-03 | loss=0.132289 | recon=0.026529 | kl=2.115202 | beta=0.050
+[train] method=vae ep= 900/1000 | lr=1.00e-03 | loss=0.131432 | recon=0.028309 | kl=2.062461 | beta=0.050
+[train] method=vae ep= 950/1000 | lr=1.00e-03 | loss=0.134035 | recon=0.027948 | kl=2.121745 | beta=0.050
+[train] method=vae ep=1000/1000 | lr=1.00e-03 | loss=0.126191 | recon=0.023836 | kl=2.047091 | beta=0.050
+[eval] 2d_square | proj_dist=0.038596 | pred_recall=0.831650 | pred_FPrate=0.167412 | chamfer=0.084930 | gt->learned=0.045706 | learned->gt=0.039224 | space=data_space
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_square_vae_visualize_all.png
+saved: /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/vae/2d_square_vae_loss_curves.png
+[done] method=vae dataset=2d_square seed=173 proj_dist=0.038596 recall=0.831650 FPrate=0.167412
+[saved] /home/baiyu/PycharmProjects/equality_manofld/outputs_unified/sweeps/vae_all_2d/sweep_summary_vae_seed173.json
+[sweep] method=vae avg_metrics=18 over cases=6

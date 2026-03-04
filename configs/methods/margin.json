@@ -1,0 +1,69 @@
+{
+  "seed": 721,
+  "device": "auto",
+
+  "n_train": 512,
+  "n_grid": 4096,
+
+  "knn_norm_estimation_ratio": 0.08,
+  "knn_norm_estimation_min_points": 4,
+
+  "sigmas": [0.4],
+  "off_sigma_mode": "list",
+  "off_bank_size": 16,
+  "off_bank_oversample": 6,
+  "off_bank_chunk": 64,
+  "off_bank_max_rounds": 6,
+  "off_curriculum_enable": false,
+  "off_curriculum_start_ratio": 0.2,
+  "off_curriculum_power": 1.0,
+  "off_curriculum_epochs": 0,
+
+  "use_knn_filter": true,
+  "knn_off_data_filter_ratio": 0.03,
+  "knn_off_data_filter_min_points": 1,
+
+  "hidden": 128,
+  "depth": 3,
+  "lr": 0.0003,
+  "lr_decay_step": 0,
+  "lr_decay_gamma": 1.0,
+  "epochs": 2000,
+  "train_log_every": 50,
+  "batch_size": 128,
+  "baseline_margin_target": 1.0,
+  "lam_on": 1.0,
+  "lam_off": 10.0,
+
+  "loss_ema_alpha": 0.85,
+  "eps": 1e-8,
+
+  "projector": {
+    "alpha": 0.3,
+    "steps": 100,
+    "min_steps": 30
+  },
+
+  "planner": {
+    "enable": false,
+    "method": "traj_opt",
+    "steps": 64,
+    "opt_steps": 1240,
+    "opt_lr": 0.01,
+    "opt_lam_smooth": 0.2,
+    "lam_manifold": 1.0,
+    "lam_len_joint": 0.4,
+    "trust_scale": 0.8,
+    "off_dist": 0.6,
+    "pair_min_ratio": 0.15,
+    "pair_max_ratio": 0.35,
+    "pair_tries": 1200,
+    "init_mode": "joint_spline",
+    "joint_mid_noise": 0.0,
+    "anim_fps": 6,
+    "anim_stride": 1,
+    "save_gif": false,
+    "pybullet_render": false,
+    "pybullet_real_time_dt": 0.06
+  }
+}

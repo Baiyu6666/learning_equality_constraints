@@ -1,0 +1,28 @@
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Current SDK version is 0.18.2
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Configure stats pid to 573762
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Loading settings from /home/baiyu/.config/wandb/settings
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Loading settings from /home/baiyu/PycharmProjects/equality_manofld/runners/wandb/settings
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Loading settings from environment variables: {'entity': 'pby', 'project': 'equality_manifold_unified', 'sweep_id': 'p4g60bnx', 'root_dir': '/home/baiyu/PycharmProjects/equality_manofld/runners', 'run_id': '9maa3786', 'sweep_param_path': '/home/baiyu/PycharmProjects/equality_manofld/runners/wandb/sweep-p4g60bnx/config-9maa3786.yaml'}
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Applying setup settings: {'mode': None, '_disable_service': None}
+2026-03-04 09:14:13,725 WARNING MainThread:573762 [wandb_setup.py:_flush():79] Could not find program at -m runners.run_sweep
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Inferring run settings from compute environment: {'program_relpath': None, 'program': '-m runners.run_sweep'}
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_setup.py:_flush():79] Applying login settings: {}
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:_log_setup():532] Logging user logs to /home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_091413-9maa3786/logs/debug.log
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:_log_setup():533] Logging internal logs to /home/baiyu/PycharmProjects/equality_manofld/runners/wandb/run-20260304_091413-9maa3786/logs/debug-internal.log
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:init():616] calling init triggers
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:init():623] wandb.init called with sweep_config: {'seed': 173}
+config: {}
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:init():666] starting backend
+2026-03-04 09:14:13,725 INFO    MainThread:573762 [wandb_init.py:init():670] sending inform_init request
+2026-03-04 09:14:13,727 INFO    MainThread:573762 [backend.py:_multiprocessing_setup():104] multiprocessing start_methods=fork,spawn,forkserver, using: spawn
+2026-03-04 09:14:13,727 INFO    MainThread:573762 [wandb_init.py:init():683] backend started and connected
+2026-03-04 09:14:13,731 INFO    MainThread:573762 [wandb_run.py:_config_callback():1393] config_cb None None {'seed': 173}
+2026-03-04 09:14:13,731 INFO    MainThread:573762 [wandb_init.py:init():778] updated telemetry
+2026-03-04 09:14:13,732 INFO    MainThread:573762 [wandb_init.py:init():811] communicating run to backend with 90.0 second timeout
+2026-03-04 09:14:14,083 INFO    MainThread:573762 [wandb_init.py:init():862] starting run threads in backend
+2026-03-04 09:14:14,128 INFO    MainThread:573762 [wandb_run.py:_console_start():2464] atexit reg
+2026-03-04 09:14:14,128 INFO    MainThread:573762 [wandb_run.py:_redirect():2312] redirect: wrap_raw
+2026-03-04 09:14:14,128 INFO    MainThread:573762 [wandb_run.py:_redirect():2377] Wrapping output streams.
+2026-03-04 09:14:14,129 INFO    MainThread:573762 [wandb_run.py:_redirect():2402] Redirects installed.
+2026-03-04 09:14:14,129 INFO    MainThread:573762 [wandb_init.py:init():906] run started, returning control to user process
+2026-03-04 09:14:32,076 WARNING MsgRouterThr:573762 [router.py:message_loop():77] message_loop has been closed
