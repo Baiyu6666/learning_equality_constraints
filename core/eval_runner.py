@@ -49,5 +49,8 @@ def run_eval_metrics(
         dataset_name=dataset_name,
         embed_fn=embed_fn,
         postprocess_fn=postprocess_fn,
+        eps_stop_override=float(eval_artifacts["eval_eps_used"]),
+        x0_override=eval_artifacts["x_eval"],
+        learned_samples_override=eval_artifacts["proj"],
     )
     return {**metrics_proj, **metrics_chamfer}, eval_cfg, eval_artifacts

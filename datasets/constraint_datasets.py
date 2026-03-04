@@ -6,6 +6,7 @@ from __future__ import annotations
 import math
 import random
 from dataclasses import dataclass
+from types import SimpleNamespace
 from typing import Callable, Dict, Tuple
 
 import numpy as np
@@ -16,6 +17,16 @@ LIFT_3D_VZ_DEFAULTS = {
     "z_amp2": 0.20,
     "z_freq1": 1.5,
     "z_freq2": 1.2,
+}
+
+TRAJ_3D_CODIM1_BASES = {
+    "3d_paraboloid",
+    "3d_twosphere",
+    "3d_saddle_surface",
+    "3d_sphere_surface",
+    "3d_torus_surface",
+    "3d_planar_arm_line_n3",
+    "3d_spatial_arm_plane_n3",
 }
 
 
@@ -115,11 +126,13 @@ def sample_two_sphere_outer_on(n: int, rng: np.random.Generator) -> np.ndarray:
     m = int(n * 2.2) + 64
     pts_a = sample_sphere_on(m, rng, radius=r, center=ca)
     pts_b = sample_sphere_on(m, rng, radius=r, center=cb)
-    pts = np.concatenate([pts_a, pts_b], axis=0)
-    da = np.linalg.norm(pts - ca[None, :], axis=1)
-    db = np.linalg.norm(pts - cb[None, :], axis=1)
-    keep = (db >= r - 1e-6) | (da >= r - 1e-6)
-    pts = pts[keep]
+    # Keep only the boundary of union(A, B): remove sphere patches that lie
+    # strictly inside the other sphere.
+    db_a = np.linalg.norm(pts_a - cb[None, :], axis=1)
+    da_b = np.linalg.norm(pts_b - ca[None, :], axis=1)
+    keep_a = db_a >= (r - 1e-6)
+    keep_b = da_b >= (r - 1e-6)
+    pts = np.concatenate([pts_a[keep_a], pts_b[keep_b]], axis=0)
     if pts.shape[0] < n:
         return pts.astype(np.float32)
     idx = rng.choice(pts.shape[0], size=n, replace=False)
@@ -677,7 +690,206 @@ def _workspace_sine_surface_pose_n6(cfg) -> Tuple[np.ndarray, np.ndarray]:
     return x_train, grid
 
 
+def _workspace_sine_surface_pose_n6_traj(cfg) -> Tuple[np.ndarray, np.ndarray]:
+    # Build GT reference points with the original sampler first, then generate
+    # xyz trajectories on the same sine surface and assign smooth orientation.
+    _, grid = _workspace_sine_surface_pose_n6(cfg)
+    xyz_grid = grid[:, :3].astype(np.float32)
+
+    n_train = max(1, int(cfg.n_train))
+    traj_count = int(max(4, min(96, getattr(cfg, "traj_count", max(12, n_train // 64)))))
+    traj_len = int(max(8, getattr(cfg, "traj_len", int(math.ceil(n_train / max(traj_count, 1))))))
+    traj_knn = int(max(4, getattr(cfg, "traj_knn", 20)))
+    xyz_train = _traj_points_from_grid(
+        xyz_grid,
+        n_train=n_train,
+        seed=int(getattr(cfg, "seed", 0)),
+        traj_count=traj_count,
+        traj_len=traj_len,
+        traj_knn=traj_knn,
+    ).astype(np.float32)
+
+    x = xyz_train[:, 0].astype(np.float32)
+    y = xyz_train[:, 1].astype(np.float32)
+    nvec = _surface_normal_from_xy(x, y).astype(np.float64)
+    a1, fx = 0.55, 1.2
+    t1 = np.stack([np.ones_like(x), np.zeros_like(x), a1 * fx * np.cos(fx * x)], axis=1).astype(np.float64)
+    t1 /= (np.linalg.norm(t1, axis=1, keepdims=True) + 1e-12)
+    t2 = np.cross(nvec, t1)
+    t2 /= (np.linalg.norm(t2, axis=1, keepdims=True) + 1e-12)
+
+    rng = np.random.default_rng(int(cfg.seed) + 11)
+    psi_step_std = float(max(1e-4, getattr(cfg, "traj_psi_step_std", 0.07)))
+    psi = np.zeros((n_train,), dtype=np.float64)
+    seg_len = max(2, int(math.ceil(n_train / max(traj_count, 1))))
+    for k in range(traj_count):
+        a = k * seg_len
+        b = min(n_train, (k + 1) * seg_len)
+        if a >= b:
+            continue
+        psi0 = rng.uniform(-math.pi, math.pi)
+        dpsi = rng.normal(scale=psi_step_std, size=(b - a,)).astype(np.float64)
+        psi_seg = psi0 + np.cumsum(dpsi)
+        psi[a:b] = psi_seg
+    psi = ((psi + math.pi) % (2.0 * math.pi) - math.pi).astype(np.float64)
+
+    c = np.cos(psi)[:, None]
+    s = np.sin(psi)[:, None]
+    x_axis = c * t1 + s * t2
+    y_axis = -s * t1 + c * t2
+    z_axis = nvec
+
+    rpy = np.zeros((n_train, 3), dtype=np.float32)
+    for i in range(n_train):
+        R = np.stack([x_axis[i], y_axis[i], z_axis[i]], axis=1).astype(np.float64)
+        rpy[i] = _rpy_from_rotmat_zyx(R)
+    rpy = _wrap_to_pi(rpy.astype(np.float32))
+
+    x_train = np.concatenate([xyz_train.astype(np.float32), rpy], axis=1).astype(np.float32)
+    return x_train, grid.astype(np.float32)
+
+
+def _knn_indices(points: np.ndarray, k: int) -> np.ndarray:
+    pts = points.astype(np.float32)
+    n = int(pts.shape[0])
+    kk = int(max(2, min(k, n)))
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+
+        tree = cKDTree(pts.astype(np.float64))
+        _, idx = tree.query(pts.astype(np.float64), k=kk)
+        if idx.ndim == 1:
+            idx = idx[:, None]
+        return idx.astype(np.int64)
+    except Exception:
+        d2 = np.sum((pts[:, None, :] - pts[None, :, :]) ** 2, axis=2)
+        idx = np.argpartition(d2, kth=kk - 1, axis=1)[:, :kk]
+        return idx.astype(np.int64)
+
+
+def _traj_points_from_grid(
+    grid: np.ndarray,
+    *,
+    n_train: int,
+    seed: int,
+    traj_count: int,
+    traj_len: int,
+    traj_knn: int,
+) -> np.ndarray:
+    g = np.asarray(grid, dtype=np.float32)
+    if len(g) == 0:
+        return np.zeros((max(1, int(n_train)), g.shape[1] if g.ndim == 2 else 3), dtype=np.float32)
+
+    rng = np.random.default_rng(int(seed) + 971)
+    n = max(1, int(n_train))
+    n_traj = max(1, int(traj_count))
+    t_len = max(2, int(traj_len))
+    knn = _knn_indices(g, k=max(2, int(traj_knn)))
+
+    eps = 1e-8
+    # Choose diverse starts to improve global coverage.
+    starts: list[int] = []
+    if len(g) > 0:
+        starts.append(int(rng.integers(0, len(g))))
+    while len(starts) < n_traj:
+        cand = int(rng.integers(0, len(g)))
+        if cand in starts:
+            continue
+        if len(starts) == 0:
+            starts.append(cand)
+            continue
+        d2 = np.sum((g[np.array(starts)] - g[cand : cand + 1]) ** 2, axis=1)
+        # Keep starts reasonably far apart.
+        if float(np.min(d2)) > 0.03 * float(np.mean(np.var(g, axis=0) + eps)):
+            starts.append(cand)
+        elif float(rng.uniform()) < 0.08:
+            starts.append(cand)
+
+    visit = np.zeros((len(g),), dtype=np.int32)
+    seq = []
+    for ti in range(n_traj):
+        cur = int(starts[ti % len(starts)])
+        prev_idx = -1
+        prev_dir = None
+        for _step in range(t_len):
+            seq.append(g[cur].astype(np.float32))
+            visit[cur] += 1
+            nbr = knn[cur]
+            nbr = nbr[nbr != cur]
+            if prev_idx >= 0:
+                nbr = nbr[nbr != prev_idx]
+            if len(nbr) == 0:
+                cur = int(rng.integers(0, len(g)))
+                prev_idx = -1
+                prev_dir = None
+                continue
+
+            cand = nbr[: min(14, len(nbr))]
+            vec = (g[cand] - g[cur]).astype(np.float32)
+            d = np.linalg.norm(vec, axis=1) + eps
+            u = vec / d[:, None]
+            cov = visit[cand].astype(np.float32)
+            # Coverage gain: prefer less visited regions.
+            cov_gain = (np.max(cov) - cov) if len(cov) > 0 else np.zeros_like(d)
+
+            if prev_dir is None:
+                # First move: prefer local smooth step (short distance).
+                score = -d + 0.65 * cov_gain
+            else:
+                a = np.clip(np.sum(u * prev_dir.reshape(1, -1), axis=1), -1.0, 1.0)
+                # Strongly prefer forward continuation, weakly prefer short step.
+                score = 3.2 * a - 0.22 * d + 0.90 * cov_gain
+                # Occasionally allow controlled turn to avoid dead loops.
+                if float(rng.uniform()) < 0.08:
+                    score = score + rng.normal(scale=0.35, size=score.shape).astype(np.float32)
+
+            pick = int(np.argmax(score))
+            nxt = int(cand[pick])
+            new_vec = (g[nxt] - g[cur]).astype(np.float32)
+            new_norm = float(np.linalg.norm(new_vec))
+            if new_norm > 1e-8:
+                new_u = new_vec / new_norm
+                if prev_dir is None:
+                    prev_dir = new_u.astype(np.float32)
+                else:
+                    prev_dir = (0.82 * prev_dir + 0.18 * new_u).astype(np.float32)
+                    prev_dir = prev_dir / max(float(np.linalg.norm(prev_dir)), 1e-8)
+            prev_idx = cur
+            cur = nxt
+
+    arr = np.asarray(seq, dtype=np.float32)
+    if len(arr) == 0:
+        return np.zeros((n, g.shape[1]), dtype=np.float32)
+    # Keep trajectory ordering in x_train so downstream consumers can visualize
+    # contiguous motion segments instead of shuffled manifold points.
+    if len(arr) >= n:
+        return arr[:n].astype(np.float32)
+    rep = int(math.ceil(float(n) / float(len(arr))))
+    tiled = np.tile(arr, (rep, 1)).astype(np.float32)
+    return tiled[:n].astype(np.float32)
+
+
 def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
+    if name.endswith("_traj"):
+        base = str(name)[: -len("_traj")]
+        if base in TRAJ_3D_CODIM1_BASES:
+            cfg_base = SimpleNamespace(**vars(cfg))
+            # Keep dense reference manifold for eval; train set becomes trajectory samples.
+            x_base, grid = generate_dataset(base, cfg_base)
+            n_train = max(1, int(getattr(cfg, "n_train", len(x_base))))
+            traj_count = int(max(4, min(96, getattr(cfg, "traj_count", max(12, n_train // 24)))))
+            traj_len = int(max(8, getattr(cfg, "traj_len", int(math.ceil(n_train / max(traj_count, 1))))))
+            traj_knn = int(max(4, getattr(cfg, "traj_knn", 16)))
+            x_traj = _traj_points_from_grid(
+                grid.astype(np.float32),
+                n_train=n_train,
+                seed=int(getattr(cfg, "seed", 0)),
+                traj_count=traj_count,
+                traj_len=traj_len,
+                traj_knn=traj_knn,
+            )
+            return x_traj.astype(np.float32), grid.astype(np.float32)
+
     if name == "3d_spiral":
         rng_train = np.random.default_rng(int(cfg.seed))
         rng_grid = np.random.default_rng(int(cfg.seed) + 1)
@@ -797,6 +1009,8 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         return _spatial_arm_up_n6(cfg)
     if name == "6d_workspace_sine_surface_pose":
         return _workspace_sine_surface_pose_n6(cfg)
+    if name == "6d_workspace_sine_surface_pose_traj":
+        return _workspace_sine_surface_pose_n6_traj(cfg)
     if name == "2d_noisy_sine":
         t = np.random.uniform(-math.pi, math.pi, size=(cfg.n_train, 1))
         y = np.sin(t) + 0.1 * np.random.randn(cfg.n_train, 1)

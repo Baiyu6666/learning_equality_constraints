@@ -17,11 +17,11 @@ import torch
 from torch import nn
 
 from evaluator.evaluator import eval_bounds_from_train
+from evaluator.evaluator import resolve_gt_grid
 from datasets.constraint_datasets import set_seed
 from methods.vector_eikonal.plots import (
     _plot_constraint_2d,
     _plot_highdim_pca,
-    _plot_planar_arm_planning,
     _plot_projection_value_distribution,
     _plot_ur5_eval_projection_workspace_orientation_3d,
     _plot_workspace_pose_projection_error_distributions,
@@ -30,6 +30,8 @@ from methods.vector_eikonal.plots import (
     _plot_zero_surfaces_3d,
     _render_ur5_pybullet_trajectories,
 )
+from methods.baseline_udf.plots import plot_planned_paths
+from methods.baseline_udf import baseline_udf as udf
 from core.dataset_resolve import resolve_dataset
 from core.eval_runner import run_eval_metrics
 from core.kinematics import (
@@ -44,10 +46,9 @@ from core.projection import (
     project_trajectory_numpy,
 )
 from core.mlp import MLP
+from core.planner import plan_path
+from core.planner import _plot_planar_arm_planning
 from methods.vector_eikonal.codim_utils import estimate_codim_local_pca
-
-# Backward-compatible symbol used by plan_on_eikonal_only.py
-MLPConstraint = MLP
 
 DEFAULT_DATASETS = [
     # "3d_torus_surface",
@@ -84,13 +85,31 @@ class DemoCfg:
     train_sample_pad_ratio: float = 0.6
     train_min_axis_span_ratio: float = 0.08
     metric_eval_every: int = 1
-    proj_alpha: float = 0.3
-    proj_steps: int = 100
-    proj_min_steps: int = 30
     projector: dict[str, Any] = field(
         default_factory=lambda: {"alpha": 0.3, "steps": 100, "min_steps": 30}
     )
-    n_traj: int = 64
+    planner: dict[str, Any] = field(
+        default_factory=lambda: {
+            "pair_min_ratio": 0.15,
+            "pair_max_ratio": 0.35,
+            "pair_tries": 1200,
+            "init_mode": "joint_spline",
+            "joint_mid_noise": 0.0,
+            "lam_manifold": 1.0,
+            "lam_len_joint": 0.40,
+            "opt_steps": 1240,
+            "opt_lr": 0.01,
+            "opt_lam_smooth": 0.2,
+            "trust_scale": 0.8,
+            "method": "traj_opt",
+            "anim_fps": 6,
+            "anim_stride": 1,
+            "save_gif": True,
+            "pybullet_render": False,
+            "pybullet_real_time_dt": 0.06
+        }
+    )
+    viz_proj_traj_count: int = 64
 
     constraint_dim: Any = "auto"     # Can be int or "auto".
     codim_auto_sample_ratio: float = 0.2
@@ -106,26 +125,7 @@ class DemoCfg:
     plot_traj_max_count: int = 24
     plot_traj_stride: int = 2
     surface_use_marching_cubes: bool = True
-    plan_pair_min_ratio: float = 0.15
-    plan_pair_max_ratio: float = 0.35
-    plan_pair_tries: int = 1200
-    plan_init_mode: str = "joint_spline"  # "joint_spline" or "workspace_ik"
-    plan_joint_mid_noise: float = 0.0
-    plan_lam_manifold: float = 1.0
-    plan_lam_len_joint: float = 0.40
-    # Planner stabilization against sudden jumps/branch switching.
-    plan_opt_steps: int = 1240
-    plan_opt_lr: float = 0.01
-    plan_opt_lam_smooth: float = 0.2
-    plan_trust_scale: float = 0.8  # trust radius = scale * mean step of init path
-    plan_method: str = "trajectory_opt"  # "trajectory_opt" or "linear_project"
-    plan_anim_fps: int = 6
-    plan_anim_stride: int = 1
-    plan_save_gif: bool = not False
-    plan_pybullet_render: bool = False
-    plan_pybullet_real_time_dt: float = 0.06
     train_log_every: int = 50
-    ur5_backend: str = "analytic"  # "analytic" or "pybullet"
     # UR5 kinematics/render config now lives in datasets/ur5_pybullet_utils.py
 
 # ----------------------------------------------------------------------
@@ -141,13 +141,11 @@ DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
         "epochs": 4,#000,
         "constraint_dim": 2,
         "lr": 2e-4,
-        "ur5_backend": "analytic",
     },
     "6d_spatial_arm_up_n6": {
         "epochs": 3000,
         "constraint_dim": 2,
         "lr": 3e-4,
-        "ur5_backend": "pybullet",
 
     },
 }
@@ -165,6 +163,34 @@ def _choose_device(device: str) -> str:
     return "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def _proj_alpha(cfg: Any) -> float:
+    proj = getattr(cfg, "projector", None)
+    if isinstance(proj, dict) and "alpha" in proj:
+        return float(proj["alpha"])
+    return float(getattr(cfg, "proj_alpha", 0.3))
+
+
+def _proj_steps(cfg: Any) -> int:
+    proj = getattr(cfg, "projector", None)
+    if isinstance(proj, dict) and "steps" in proj:
+        return int(proj["steps"])
+    return int(getattr(cfg, "proj_steps", 100))
+
+
+def _proj_min_steps(cfg: Any) -> int:
+    proj = getattr(cfg, "projector", None)
+    if isinstance(proj, dict) and "min_steps" in proj:
+        return int(proj["min_steps"])
+    return int(getattr(cfg, "proj_min_steps", 30))
+
+
+def _planner_bool(cfg: Any, key: str, default: bool) -> bool:
+    pln = getattr(cfg, "planner", None)
+    if isinstance(pln, dict) and key in pln:
+        return bool(pln[key])
+    return bool(default)
+
+
 def _enable_interactive_backend_if_possible() -> bool:
     for name in ("QtAgg", "TkAgg", "Qt5Agg"):
         try:
@@ -179,12 +205,84 @@ def _uniform_in_box(n: int, mins: np.ndarray, maxs: np.ndarray) -> np.ndarray:
     return np.random.uniform(mins, maxs, size=(n, len(mins))).astype(np.float32)
 
 
+def _nn_dist_numpy(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    if len(a) == 0 or len(b) == 0:
+        return np.full((len(a),), float("nan"), dtype=np.float32)
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+
+        tree = cKDTree(b.astype(np.float64))
+        d, _ = tree.query(a.astype(np.float64), k=1)
+        return d.astype(np.float32)
+    except Exception:
+        aa = a.astype(np.float32)
+        bb = b.astype(np.float32)
+        d2 = np.sum((aa[:, None, :] - bb[None, :, :]) ** 2, axis=2)
+        return np.sqrt(np.maximum(np.min(d2, axis=1), 0.0)).astype(np.float32)
+
+
+def _worst_case_traj_2d(
+    *,
+    model: nn.Module,
+    dataset_name: str,
+    x_train: np.ndarray,
+    cfg: DemoCfg,
+    eval_cfg: Any,
+    eval_artifacts: dict[str, np.ndarray],
+) -> tuple[np.ndarray | None, np.ndarray | None]:
+    x_eval = np.asarray(eval_artifacts.get("x_eval", np.zeros((0, 2), dtype=np.float32)), dtype=np.float32)
+    proj = np.asarray(eval_artifacts.get("proj", np.zeros((0, 2), dtype=np.float32)), dtype=np.float32)
+    if x_eval.ndim != 2 or proj.ndim != 2 or x_eval.shape[1] != 2 or proj.shape[1] != 2:
+        return None, None
+    n = int(min(len(x_eval), len(proj)))
+    if n <= 0:
+        return None, None
+    x_eval = x_eval[:n]
+    proj = proj[:n]
+    finite = np.isfinite(x_eval).all(axis=1) & np.isfinite(proj).all(axis=1)
+    if not np.any(finite):
+        return None, None
+    x_eval = x_eval[finite]
+    proj = proj[finite]
+
+    gt_grid = resolve_gt_grid(str(dataset_name), eval_cfg, x_train=x_train).astype(np.float32)
+    if gt_grid.ndim != 2 or gt_grid.shape[1] != 2 or len(gt_grid) == 0:
+        return None, None
+    d_final = _nn_dist_numpy(proj, gt_grid)
+    if len(d_final) == 0 or not np.isfinite(d_final).any():
+        return None, None
+    n_worst = int(min(24, max(1, np.ceil(0.05 * len(d_final)))))
+    idx = np.argsort(d_final)[-n_worst:]
+    x0_worst = x_eval[idx].astype(np.float32, copy=False)
+
+    eps_used = float(eval_artifacts.get("eval_eps_used", float("nan")))
+    if not np.isfinite(eps_used) or eps_used <= 0.0:
+        with torch.no_grad():
+            f_on = model(torch.from_numpy(x_train.astype(np.float32)).to(cfg.device))
+            if f_on.dim() == 1:
+                f_on = f_on.unsqueeze(1)
+            h_on = torch.linalg.norm(f_on, dim=1).detach().cpu().numpy().reshape(-1)
+        eps_used = float(np.percentile(np.abs(h_on), float(getattr(eval_cfg, "zero_eps_quantile", 90.0))))
+
+    worst_traj = project_trajectory_numpy(
+        model,
+        x0_worst,
+        device=str(cfg.device),
+        proj_steps=_proj_steps(cfg),
+        proj_alpha=_proj_alpha(cfg),
+        proj_min_steps=_proj_min_steps(cfg),
+        f_abs_stop=eps_used,
+    )
+    return worst_traj, x0_worst
+
+
 def _resolve_dataset(name: str, cfg: DemoCfg) -> dict[str, Any]:
+    ur5_backend = "pybullet" if str(name) == "6d_spatial_arm_up_n6" else "analytic"
     return resolve_dataset(
         name,
         cfg,
         optimize_ur5_train_only=True,
-        ur5_backend=str(getattr(cfg, "ur5_backend", "analytic")),
+        ur5_backend=ur5_backend,
     )
 
 
@@ -417,9 +515,9 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             m,
             x0_use,
             device=str(cfg.device),
-            proj_steps=int(cfg.proj_steps),
-            proj_alpha=float(cfg.proj_alpha),
-            proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+            proj_steps=_proj_steps(cfg),
+            proj_alpha=_proj_alpha(cfg),
+            proj_min_steps=_proj_min_steps(cfg),
             f_abs_stop=float(eps),
         )
         return q_end, steps
@@ -427,17 +525,19 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
     embed_fn = None
     post_fn = None
     if _is_arm_dataset(name):
+        use_pybullet_n6 = str(name) == "6d_spatial_arm_up_n6"
         embed_fn = lambda q, _name=name: shared_workspace_embed_for_eval(  # noqa: E731
             _name,
             q,
-            ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+            ur5_use_pybullet_n6=use_pybullet_n6,
         )
         post_fn = _wrap_np_pi
     elif _is_workspace_pose_dataset(name):
+        use_pybullet_n6 = str(name) == "6d_spatial_arm_up_n6"
         embed_fn = lambda q, _name=name: shared_workspace_embed_for_eval(  # noqa: E731
             _name,
             q,
-            ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+            ur5_use_pybullet_n6=use_pybullet_n6,
         )
         post_fn = _wrap_workspace_pose_rpy_np
 
@@ -457,7 +557,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
     vis_cfg = SimpleNamespace(**vis_vals)
 
     mins, maxs = eval_bounds_from_train(x_train, eval_cfg)
-    x0 = _uniform_in_box(cfg.n_traj, mins, maxs)
+    x0 = _uniform_in_box(cfg.viz_proj_traj_count, mins, maxs)
     with torch.no_grad():
         f_on_t = model(torch.from_numpy(x_train).to(cfg.device))
         if f_on_t.dim() == 1:
@@ -468,9 +568,9 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
         model,
         x0,
         device=str(cfg.device),
-        proj_steps=int(cfg.proj_steps),
-        proj_alpha=float(cfg.proj_alpha),
-        proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+        proj_steps=_proj_steps(cfg),
+        proj_alpha=_proj_alpha(cfg),
+        proj_min_steps=_proj_min_steps(cfg),
         f_abs_stop=eps_stop,
     )
 
@@ -500,8 +600,17 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
     print(f"saved: {out_diag}")
 
     planned_paths: list[np.ndarray] = []
+    planning_enabled = _planner_bool(cfg, "enable", True)
 
     if data_dim == 2:
+        worst_traj, worst_x0 = _worst_case_traj_2d(
+            model=model,
+            dataset_name=str(name),
+            x_train=x_train,
+            cfg=cfg,
+            eval_cfg=eval_cfg,
+            eval_artifacts=eval_artifacts,
+        )
         out_path = os.path.join(outdir, f"{name}_on_eikonal_contour_traj.png")
         _plot_constraint_2d(
             model=model,
@@ -511,11 +620,65 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             title=f"{name}: on-loss + eikonal",
             axis_labels=(axis_labels[0], axis_labels[1]),
             cfg=vis_cfg,
+            worst_traj=worst_traj,
+            worst_x0=worst_x0,
         )
         print(f"saved: {out_path}")
-        if name == "2d_planar_arm_line_n2":
+        if planning_enabled and name == "2d_planar_arm_line_n2":
             out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
             planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
+        elif planning_enabled:
+            x_eval = np.asarray(eval_artifacts.get("x_eval", np.zeros((0, 2), dtype=np.float32)), dtype=np.float32)
+            grid_vis = ds.get("grid", None)
+            if grid_vis is None:
+                grid_vis = x_train
+            grid_vis = np.asarray(grid_vis, dtype=np.float32)
+            if len(x_eval) >= 8 and len(grid_vis) > 0:
+                plan_rng = np.random.default_rng(int(cfg.seed) + 77)
+                n_pairs = 4
+                replace = len(x_eval) < 2 * n_pairs
+                picks = plan_rng.choice(len(x_eval), size=2 * n_pairs, replace=replace)
+                pairs = [(x_eval[picks[2 * i]], x_eval[picks[2 * i + 1]]) for i in range(n_pairs)]
+                plans_proj: list[np.ndarray] = []
+                plans_constr: list[np.ndarray] = []
+                pln = getattr(cfg, "planner", None)
+                planner_name = str(pln.get("method", "traj_opt")) if isinstance(pln, dict) else "traj_opt"
+                n_waypoints = int(pln.get("steps", 64)) + 1 if isinstance(pln, dict) else 65
+                use_linear = planner_name.lower() == "linear_proj"
+                eps_used = float(eval_artifacts.get("eval_eps_used", 1e-6))
+                if not np.isfinite(eps_used) or eps_used <= 0.0:
+                    eps_used = 1e-6
+                for x_start, x_goal in pairs:
+                    x_start = udf.true_projection(x_start[None, :], grid_vis)[0][0]
+                    x_goal = udf.true_projection(x_goal[None, :], grid_vis)[0][0]
+                    planned = plan_path(
+                        model=model,
+                        x_start=x_start,
+                        x_goal=x_goal,
+                        cfg=cfg,
+                        planner_name=planner_name,
+                        n_waypoints=n_waypoints,
+                        dataset_name=name,
+                        periodic_joint=bool(ds.get("periodic_joint", False)),
+                        f_abs_stop=eps_used,
+                    )
+                    if use_linear:
+                        plans_proj.append(planned)
+                    else:
+                        plans_constr.append(planned)
+                out_plan = os.path.join(outdir, f"{name}_on_eikonal_planner_paths.png")
+                plot_planned_paths(
+                    model,
+                    x_train,
+                    grid_vis,
+                    plans_proj,
+                    plans_constr,
+                    vis_cfg,
+                    out_path=out_plan,
+                    title=f"{name}: Eikonal Planned Paths",
+                    zero_level_eps=eps_used,
+                )
+                print(f"saved: {out_plan}")
         return
 
     if data_dim == 3:
@@ -540,7 +703,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             title=f"{name}: on-loss + eikonal",
         )
         print(f"saved: {out_path}")
-        if name == "6d_workspace_sine_surface_pose":
+        if name in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
             out_pose = os.path.join(outdir, f"{name}_on_eikonal_workspace_pose_orientation.png")
             _plot_workspace_pose_orientation_3d(
                 x_train=x_train,
@@ -557,7 +720,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
                 title=f"{name}: projection errors before/after",
             )
             print(f"saved: {out_dist}")
-    if name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if planning_enabled and name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
         out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
         planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
     if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
@@ -580,7 +743,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
         )
         print(f"saved: {out_ws}")
     # Keep pybullet render as the very last step after all figures are saved.
-    if name == "6d_spatial_arm_up_n6" and bool(cfg.plan_pybullet_render) and len(planned_paths) > 0:
+    if planning_enabled and name == "6d_spatial_arm_up_n6" and _planner_bool(cfg, "pybullet_render", False) and len(planned_paths) > 0:
         _render_ur5_pybullet_trajectories(planned_paths, cfg)
 
 
@@ -613,28 +776,23 @@ if __name__ == "__main__":
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
-    p.add_argument("--legacy", action="store_true", help="run legacy in-file main() flow")
     args = p.parse_args()
-
-    if args.legacy:
-        main()
-    else:
-        ds_list = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
-        for ds_name in ds_list:
-            print(f"[run] method=eikonal dataset={ds_name}")
-            result, loaded_paths = _run_one_unified(
-                method="eikonal",
-                dataset=ds_name,
-                out_root=str(args.outdir),
-                seed_override=args.seed,
-                config_root=str(args.config_root),
-                cli_overrides=list(args.override),
-            )
-            m = result["metrics"]
-            print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
-            print(
-                f"[done] method=eikonal dataset={ds_name} "
-                f"proj_dist={m.get('proj_manifold_dist', float('nan')):.6f} "
-                f"recall={m.get('pred_recall', float('nan')):.6f} "
-                f"FPrate={m.get('pred_FPrate', float('nan')):.6f}"
-            )
+    ds_list = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
+    for ds_name in ds_list:
+        print(f"[run] method=eikonal dataset={ds_name}")
+        result, loaded_paths = _run_one_unified(
+            method="eikonal",
+            dataset=ds_name,
+            out_root=str(args.outdir),
+            seed_override=args.seed,
+            config_root=str(args.config_root),
+            cli_overrides=list(args.override),
+        )
+        m = result["metrics"]
+        print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
+        print(
+            f"[done] method=eikonal dataset={ds_name} "
+            f"proj_dist={m.get('proj_manifold_dist', float('nan')):.6f} "
+            f"recall={m.get('pred_recall', float('nan')):.6f} "
+            f"FPrate={m.get('pred_FPrate', float('nan')):.6f}"
+        )

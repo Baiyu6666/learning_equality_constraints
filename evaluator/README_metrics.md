@@ -43,20 +43,16 @@ This document explains the unified evaluation pipeline and every metric produced
   - Better: lower
 
 - `pred_recall`
-  - Meaning: among true-near-manifold eval points (`d_true_eval < tau`), fraction predicted as on-manifold (`|F(x)| < eval_eps_used`)
+  - Meaning: among GT manifold points (dataset `grid`), fraction predicted as on-manifold (`|F(x)| < eval_eps_used`)
   - Better: higher
 
 - `pred_FPrate`
-  - Meaning: among true-far eval points (`d_true_eval >= tau`), fraction wrongly predicted as on-manifold
+  - Meaning: among sampled eval points that are far from GT manifold (`d_true_eval >= tau`), fraction wrongly predicted as on-manifold
   - Better: lower
 
 - `pred_precision`
-  - Meaning: among predicted on-manifold points, fraction that are truly near-manifold
+  - Meaning: among projected points (`project_fn` outputs), fraction within GT-near threshold (`distance_to_GT < tau`)
   - Better: higher
-
-- `pred_manifold_dist`
-  - Meaning: average GT distance of predicted on-manifold points
-  - Better: lower
 
 ### Projection quality
 

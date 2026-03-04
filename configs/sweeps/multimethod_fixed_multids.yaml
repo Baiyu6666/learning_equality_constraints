@@ -1,3 +1,5 @@
+project: equality_manifold_unified
+entity: pby
 program: runners/run_sweep.py
 method: grid
 metric:
@@ -34,11 +36,11 @@ parameters:
     values: [0.05]
 
   # Method + dataset fixed params.
-  m__eikonal__ds__3d_spiral__proj_steps:
+  m__eikonal__ds__3d_spiral__projector.steps:
     values: [80]
-  m__eikonal__ds__3d_sphere_surface__proj_steps:
+  m__eikonal__ds__3d_sphere_surface__projector.steps:
     values: [100]
-  m__delta__ds__3d_spiral__proj_steps:
+  m__delta__ds__3d_spiral__projector.steps:
     values: [60]
   m__vae__ds__2d_sine__viz_enable:
     values: [false]

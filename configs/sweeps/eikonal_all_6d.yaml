@@ -1,3 +1,5 @@
+project: equality_manifold_unified
+entity: pby
 program: runners/run_sweep.py
 method: grid
 metric:

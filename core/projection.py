@@ -5,6 +5,36 @@ import torch
 from torch import nn
 
 
+def true_projection(x: np.ndarray, grid: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Nearest-neighbor projection onto a reference grid."""
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+    except Exception:
+        xx = x.astype(np.float32, copy=False)
+        gg = grid.astype(np.float32, copy=False)
+        d2 = np.sum((xx[:, None, :] - gg[None, :, :]) ** 2, axis=2)
+        idx = np.argmin(d2, axis=1)
+        d = np.sqrt(np.maximum(d2[np.arange(len(xx)), idx], 0.0)).astype(np.float32)
+        return gg[idx].astype(np.float32), d
+    tree = cKDTree(grid)
+    d, idx = tree.query(x, k=1)
+    return grid[idx].astype(np.float32), np.asarray(d, dtype=np.float32)
+
+
+def true_distance(x: np.ndarray, grid: np.ndarray) -> np.ndarray:
+    """Nearest-neighbor distance to a reference grid."""
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+    except Exception:
+        xx = x.astype(np.float32, copy=False)
+        gg = grid.astype(np.float32, copy=False)
+        d2 = np.sum((xx[:, None, :] - gg[None, :, :]) ** 2, axis=2)
+        return np.sqrt(np.maximum(np.min(d2, axis=1), 0.0)).astype(np.float32)
+    tree = cKDTree(grid)
+    d, _ = tree.query(x, k=1)
+    return np.asarray(d, dtype=np.float32)
+
+
 def _f_and_grad(model: nn.Module, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
     f = model(x)
     if f.dim() == 1:

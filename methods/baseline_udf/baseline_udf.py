@@ -6,7 +6,7 @@ import argparse
 import json
 import math
 import os
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Dict, List, Tuple
 
@@ -34,6 +34,8 @@ from core.projection import (
     project_points_with_steps_numpy,
     project_trajectory_numpy,
     project_trajectory_tensor,
+    true_distance,
+    true_projection,
 )
 from core.mlp import MLP
 from core.planner import plan_path
@@ -47,11 +49,6 @@ from methods.baseline_udf.plots import (
     plot_planned_paths_off,
     plot_worst_distance_contour,
 )
-
-try:
-    import wandb  # type: ignore
-except Exception:
-    wandb = None
 
 @dataclass
 class Config:
@@ -80,21 +77,6 @@ class Config:
     knn_off_data_filter_ratio: float = 0.03  # ratio for off-data filter knn points
     knn_off_data_filter_min_points: int = 1  # min points for off-data filter knn
 
-    plan_steps: int = 64  # planner steps
-    # Keep legacy fields for compatibility; planner uses eikonal-style fields first.
-    plan_iters: int = 400
-    plan_lr: float = 0.05
-    plan_smooth_weight: float = 1.0
-    plan_manifold_weight: float = 400.0
-    plan_opt_steps: int = 1240
-    plan_opt_lr: float = 0.01
-    plan_opt_lam_smooth: float = 0.2
-    plan_lam_manifold: float = 1.0
-    plan_lam_len_joint: float = 0.40
-    plan_trust_scale: float = 0.8
-    plan_method: str = "trajectory_opt"  # "trajectory_opt" or "linear_project"
-    plan_off_dist: float = 0.6  # off-manifold target offset
-
     hidden: int = 128  # model width
     depth: int = 3  # model depth
     lr: float = 3e-4  # optimizer learning rate
@@ -112,16 +94,45 @@ class Config:
 
     eps: float = 1e-8  # numeric eps
 
-    proj_alpha: float = 0.3  # projection step size
-    proj_steps: int = 100  # projection iterations
-    proj_min_steps: int = 30  # minimum projection iterations before early-stop
     projector: dict = field(default_factory=lambda: {"alpha": 0.3, "steps": 100, "min_steps": 30})
+    planner: dict = field(
+        default_factory=lambda: {
+            "enable": True,
+            "steps": 64,
+            "method": "traj_opt",
+            "opt_steps": 1240,
+            "opt_lr": 0.01,
+            "opt_lam_smooth": 0.2,
+            "lam_manifold": 1.0,
+            "lam_len_joint": 0.40,
+            "trust_scale": 0.8,
+            "off_dist": 0.6,
+        }
+    )
 
-    wandb_enable: bool = False  # enable wandb
-    wandb_project: str = "equality constraint learning"  # wandb project
-    wandb_entity: str = "pby"  # wandb entity
-    wandb_run_name: str = ""  # wandb run name
-    ur5_backend: str = "analytic"  # "analytic" or "pybullet"
+def _ur5_backend_from_dataset(name: str) -> str:
+    return "pybullet" if str(name) == "6d_spatial_arm_up_n6" else "analytic"
+
+
+def _planner_val(cfg: Config, key: str, default: float | int | str) -> float | int | str:
+    pln = getattr(cfg, "planner", None)
+    if isinstance(pln, dict) and key in pln:
+        return pln[key]
+    return default
+
+
+def _planner_bool(cfg: Config, key: str, default: bool) -> bool:
+    pln = getattr(cfg, "planner", None)
+    if isinstance(pln, dict) and key in pln:
+        return bool(pln[key])
+    return bool(default)
+
+
+def _projector_val(cfg: Config, key: str, default: float | int) -> float | int:
+    proj = getattr(cfg, "projector", None)
+    if isinstance(proj, dict) and key in proj:
+        return proj[key]
+    return default
 
 
 def pairwise_sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -190,34 +201,31 @@ def knn_normals(
     return normals
 
 
-def true_distance(x: np.ndarray, grid: np.ndarray) -> np.ndarray:
-    try:
-        from scipy.spatial import cKDTree  # type: ignore
-    except Exception:
-        d2 = pairwise_sqdist(x, grid)
-        d2 = np.maximum(d2, 0.0)
-        return np.sqrt(np.min(d2, axis=1))
-    tree = cKDTree(grid)
-    d, _ = tree.query(x, k=1)
-    return d
-
-
-def true_projection(x: np.ndarray, grid: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    try:
-        from scipy.spatial import cKDTree  # type: ignore
-    except Exception:
-        d2 = pairwise_sqdist(x, grid)
-        idx = np.argmin(d2, axis=1)
-        d = np.sqrt(np.maximum(d2[np.arange(len(x)), idx], 0.0))
-        return grid[idx], d
-    tree = cKDTree(grid)
-    d, idx = tree.query(x, k=1)
-    return grid[idx], d
+def knn_normal_bases(
+    x: np.ndarray,
+    k: int,
+    codim: int,
+    cfg: Config | None = None,
+) -> np.ndarray:
+    n, d = x.shape
+    c = max(1, min(int(codim), int(d)))
+    d2 = pairwise_sqdist(x, x)
+    bases = np.zeros((n, d, c), dtype=np.float32)
+    for i in range(n):
+        nbr_idx = np.argsort(d2[i])[1 : k + 1]
+        nbrs = x[nbr_idx]
+        _, evecs, _, _ = _local_pca_frame(nbrs, x[i], cfg=cfg)
+        b = evecs[:, :c]
+        for j in range(c):
+            bj = b[:, j]
+            b[:, j] = bj / (np.linalg.norm(bj) + 1e-12)
+        bases[i] = b.astype(np.float32)
+    return bases
 
 
 def sample_off_manifold(
     x_on: torch.Tensor,
-    n_hat: torch.Tensor,
+    n_basis: torch.Tensor,
     sigmas: Tuple[float, ...] | float,
     sigma_mode: str = "list",
     sigma_per_point: torch.Tensor | None = None,
@@ -226,36 +234,41 @@ def sample_off_manifold(
     r_neg_per_point: torch.Tensor | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     sigmas = _as_sigmas(sigmas)
-    z90 = 1.645  # P(|N(0,1)| <= z90) ~= 0.90
-    # Backward compatibility: old configs may still pass "scale".
     if sigma_mode == "scale":
-        sigma_mode = "max"
-    # Sample scalar offsets along the normal direction only
+        raise ValueError("sigma_mode='scale' was removed; use 'max' or 'list'")
+
+    # Sample off-distance radius rho from sigmas-defined distribution.
     if sigma_per_point is not None:
+        sigma = sigma_per_point.to(device=x_on.device, dtype=x_on.dtype).view(-1, 1)
+        rho = torch.abs(torch.randn_like(x_on[:, :1]) * sigma)
         if r_pos_per_point is not None and r_neg_per_point is not None:
             r_pos = r_pos_per_point.to(device=x_on.device, dtype=x_on.dtype).view(-1, 1)
             r_neg = r_neg_per_point.to(device=x_on.device, dtype=x_on.dtype).view(-1, 1)
-            z = torch.randn_like(x_on[:, :1])
-            s = torch.where(z >= 0.0, z * (r_pos / z90), z * (r_neg / z90))
-            s = torch.clamp(s, min=-r_neg, max=r_pos)
+            rho = torch.minimum(rho, torch.minimum(r_pos, r_neg))
         else:
-            sigma = sigma_per_point.to(device=x_on.device, dtype=x_on.dtype).view(-1, 1) / z90
-            s = torch.randn_like(x_on[:, :1]) * sigma
             if r_kappa_per_point is not None:
                 r_kappa = r_kappa_per_point.to(device=x_on.device, dtype=x_on.dtype).view(-1, 1)
-                s = torch.clamp(s, min=-r_kappa, max=r_kappa)
+                rho = torch.minimum(rho, r_kappa)
     elif sigma_mode == "max":
         sigma = torch.tensor(
             float(np.max(sigmas)), device=x_on.device, dtype=x_on.dtype
         ).reshape(1, 1)
-        s = torch.randn_like(x_on[:, :1]) * sigma
+        rho = torch.abs(torch.randn_like(x_on[:, :1]) * sigma)
     else:
         sigma_choices = torch.tensor(sigmas, device=x_on.device, dtype=x_on.dtype)
         idx = torch.randint(0, len(sigmas), (x_on.shape[0], 1), device=x_on.device)
         sigma = sigma_choices[idx]
-        s = torch.randn_like(x_on[:, :1]) * sigma
-    x_off = x_on + s * n_hat
-    return x_off, s
+        rho = torch.abs(torch.randn_like(x_on[:, :1]) * sigma)
+
+    # Sample uniform directions in local normal subspace.
+    # n_basis: (B, d, c), dir_local: (B, c), unit-norm.
+    c = int(n_basis.shape[2])
+    dir_local = torch.randn((x_on.shape[0], c), device=x_on.device, dtype=x_on.dtype)
+    dir_local = dir_local / torch.linalg.norm(dir_local, dim=1, keepdim=True).clamp_min(1e-12)
+    delta_local = dir_local * rho  # (B, c)
+    delta = torch.einsum("bdc,bc->bd", n_basis, delta_local)
+    x_off = x_on + delta
+    return x_off, rho
 
 
 def filter_off_by_knn(
@@ -270,7 +283,7 @@ def filter_off_by_knn(
 
 def precompute_off_bank(
     x: np.ndarray,
-    n_hat: np.ndarray,
+    n_basis: np.ndarray,
     cfg: Config,
     sigma_per_point: np.ndarray | None,
     r_kappa_per_point: np.ndarray | None,
@@ -282,7 +295,7 @@ def precompute_off_bank(
     off_bank = np.zeros((n, k, dim), dtype=np.float32)
     s_bank = np.zeros((n, k, 1), dtype=np.float32)
     x_t = torch.from_numpy(x)
-    n_t = torch.from_numpy(n_hat)
+    n_t = torch.from_numpy(n_basis)
     idx_t = torch.arange(n, dtype=torch.long)
 
     chunk = max(1, cfg.off_bank_chunk)
@@ -427,6 +440,61 @@ def precompute_off_bank(
     return off_bank, s_bank
 
 
+def build_off_bank_preview(
+    x: np.ndarray,
+    n_basis: np.ndarray,
+    cfg: Config,
+    sigma_per_point: np.ndarray | None,
+    r_kappa_per_point: np.ndarray | None,
+    r_pos_per_point: np.ndarray | None = None,
+    r_neg_per_point: np.ndarray | None = None,
+) -> Tuple[np.ndarray, np.ndarray]:
+    n, dim = x.shape
+    n_preview = int(max(8, min(64, max(1, cfg.off_bank_size) * max(1, cfg.off_bank_oversample))))
+    x_t = torch.from_numpy(x)
+    n_t = torch.from_numpy(n_basis)
+    idx_t = torch.arange(n, dtype=torch.long)
+    x_rep = x_t.repeat_interleave(n_preview, dim=0)
+    n_rep = n_t.repeat_interleave(n_preview, dim=0)
+    idx_rep = idx_t.repeat_interleave(n_preview)
+    sigma_rep = None
+    r_kappa_rep = None
+    r_pos_rep = None
+    r_neg_rep = None
+    if sigma_per_point is not None:
+        sigma_rep = torch.from_numpy(np.repeat(sigma_per_point, n_preview))
+    if r_kappa_per_point is not None:
+        r_kappa_rep = torch.from_numpy(np.repeat(r_kappa_per_point, n_preview))
+    if r_pos_per_point is not None:
+        r_pos_rep = torch.from_numpy(np.repeat(r_pos_per_point, n_preview))
+    if r_neg_per_point is not None:
+        r_neg_rep = torch.from_numpy(np.repeat(r_neg_per_point, n_preview))
+
+    x_off_cand, _ = sample_off_manifold(
+        x_rep,
+        n_rep,
+        cfg.sigmas,
+        cfg.off_sigma_mode,
+        sigma_rep,
+        r_kappa_rep,
+        r_pos_rep,
+        r_neg_rep,
+    )
+    if cfg.use_knn_filter:
+        mask = filter_off_by_knn(
+            x_off_cand,
+            x_t,
+            idx_rep,
+            effective_knn_off_data_filter_points(cfg, len(x)),
+        )
+    else:
+        mask = torch.ones(x_off_cand.shape[0], dtype=torch.bool)
+    return (
+        x_off_cand.view(n, n_preview, dim).numpy().astype(np.float32),
+        mask.view(n, n_preview).numpy().astype(bool),
+    )
+
+
 def _off_curriculum_cap_ratio(cfg: Config, epoch: int) -> float | None:
     if not bool(cfg.off_curriculum_enable):
         return None
@@ -468,9 +536,9 @@ def _make_project_fn(cfg: Config):
             model,
             x0,
             device=str(cfg.device),
-            proj_steps=int(cfg.proj_steps),
-            proj_alpha=float(cfg.proj_alpha),
-            proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+            proj_steps=int(_projector_val(cfg, "steps", 100)),
+            proj_alpha=float(_projector_val(cfg, "alpha", 0.3)),
+            proj_min_steps=int(_projector_val(cfg, "min_steps", 0)),
             f_abs_stop=eps_stop,
         )
 
@@ -478,10 +546,10 @@ def _make_project_fn(cfg: Config):
 
 
 def train_baseline(
-    cfg: Config, mode: str, x: np.ndarray, n_hat: np.ndarray
-) -> Tuple[nn.Module, Dict[str, float], Dict[str, List[float]]]:
+    cfg: Config, mode: str, x: np.ndarray, n_basis: np.ndarray
+) -> Tuple[nn.Module, Dict[str, float], Dict[str, List[float]], Dict[str, np.ndarray]]:
     x_t = torch.from_numpy(x)
-    n_t = torch.from_numpy(n_hat)
+    n_t = torch.from_numpy(n_basis)
     idx_t = torch.arange(len(x), dtype=torch.long)
     sigma_per_point = None
     r_kappa_per_point = None
@@ -489,16 +557,27 @@ def train_baseline(
     r_neg_per_point = None
     off_bank = None
     s_bank = None
+    off_bank_preview = np.zeros((len(x), 0, x.shape[1]), dtype=np.float32)
+    off_bank_preview_mask = np.zeros((len(x), 0), dtype=bool)
     if cfg.off_bank_size > 0:
         off_bank, s_bank = precompute_off_bank(
             x,
-            n_hat,
+            n_basis,
             cfg,
             sigma_per_point,
             r_kappa_per_point,
             r_pos_per_point,
             r_neg_per_point,
         )
+    off_bank_preview, off_bank_preview_mask = build_off_bank_preview(
+        x,
+        n_basis,
+        cfg,
+        sigma_per_point,
+        r_kappa_per_point,
+        r_pos_per_point,
+        r_neg_per_point,
+    )
 
     ds = TensorDataset(x_t, n_t, idx_t)
     use_cuda = cfg.device == "cuda"
@@ -531,9 +610,9 @@ def train_baseline(
     last_stats: Dict[str, float] = {}
     x_ref = x_t.to(cfg.device)
     for epoch in range(cfg.epochs):
-        for xb, nb, idxb in dl:
+        for xb, nbasis, idxb in dl:
             xb = xb.to(cfg.device)
-            nb = nb.to(cfg.device)
+            nbasis = nbasis.to(cfg.device)
             idxb = idxb.to(cfg.device)
             opt.zero_grad(set_to_none=True)
             # On-manifold penalty: enforce h(x_on)=0.
@@ -569,7 +648,7 @@ def train_baseline(
                     ).to(cfg.device)
                 x_off, s = sample_off_manifold(
                     xb,
-                    nb,
+                    nbasis,
                     cfg.sigmas,
                     cfg.off_sigma_mode,
                     sigma_batch,
@@ -629,7 +708,12 @@ def train_baseline(
         if scheduler is not None:
             scheduler.step()
 
-    return model, last_stats, history
+    artifacts = {
+        "off_bank": off_bank if off_bank is not None else np.zeros((0, 0, x.shape[1]), dtype=np.float32),
+        "off_bank_preview": off_bank_preview,
+        "off_bank_preview_mask": off_bank_preview_mask,
+    }
+    return model, last_stats, history, artifacts
 
 
 def main() -> None:
@@ -657,18 +741,6 @@ def main() -> None:
     output_root = "outputs_levelset_datasets"
     os.makedirs(output_root, exist_ok=True)
     eval_results = []
-    wb_run = None
-    wb_step = 0
-    if cfg.wandb_enable:
-        if wandb is None:
-            print("wandb not available; disable wandb logging.")
-        else:
-            wb_run = wandb.init(
-                project=cfg.wandb_project,
-                entity=cfg.wandb_entity,
-                name=cfg.wandb_run_name or None,
-                config=asdict(cfg),
-            )
 
     for name in datasets:
         set_seed(cfg.seed)
@@ -676,7 +748,7 @@ def main() -> None:
             name,
             cfg,
             optimize_ur5_train_only=True,
-            ur5_backend=str(getattr(cfg, "ur5_backend", "analytic")),
+            ur5_backend=_ur5_backend_from_dataset(name),
         )
         x_train = ds["x_train"]
         grid = ds["grid"]
@@ -690,22 +762,25 @@ def main() -> None:
         vis_cfg_ref = SimpleNamespace(**vis_vals_ref)
         x_eval = sample_eval_seed_points(x_train, eval_cfg_ref)
         knn_norm_estimation_points = effective_knn_norm_estimation_points(cfg, len(x_train))
-        n_hat = knn_normals(x_train, knn_norm_estimation_points, cfg)
+        true_codim = int(ds.get("true_codim", 1))
+        n_basis = knn_normal_bases(x_train, knn_norm_estimation_points, true_codim, cfg)
 
         margin_model = None
         margin_stats = {}
         margin_history = {}
+        margin_artifacts: Dict[str, np.ndarray] = {}
         if "margin" in methods:
-            margin_model, margin_stats, margin_history = train_baseline(
-                cfg, mode="margin", x=x_train, n_hat=n_hat
+            margin_model, margin_stats, margin_history, margin_artifacts = train_baseline(
+                cfg, mode="margin", x=x_train, n_basis=n_basis
             )
 
         delta_model = None
         delta_stats = {}
         delta_history = {}
+        delta_artifacts: Dict[str, np.ndarray] = {}
         if "delta" in methods:
-            delta_model, delta_stats, delta_history = train_baseline(
-                cfg, mode="delta", x=x_train, n_hat=n_hat
+            delta_model, delta_stats, delta_history, delta_artifacts = train_baseline(
+                cfg, mode="delta", x=x_train, n_basis=n_basis
             )
 
         out_dir = os.path.join(output_root, name)
@@ -720,7 +795,7 @@ def main() -> None:
         x0_t = torch.from_numpy(x0).to(cfg.device)
         plan_pairs = None
         plan_pairs_off = None
-        if x_train.shape[1] == 2:
+        if x_train.shape[1] == 2 and _planner_bool(cfg, "enable", True):
             plan_rng = np.random.default_rng(cfg.seed + 77)
             n_pairs = 4
             replace = len(x_eval) < 2 * n_pairs
@@ -736,7 +811,7 @@ def main() -> None:
             for i in range(n_pairs):
                 x0_p = plan_pairs[i][0]
                 x1_on = plan_pairs[i][1]
-                x1_off = x1_on + off_dirs[i] * cfg.plan_off_dist
+                x1_off = x1_on + off_dirs[i] * float(_planner_val(cfg, "off_dist", 0.6))
                 plan_pairs_off.append((x0_p, x1_off))
         steps = 0
         knn_norm_estimation_points = effective_knn_norm_estimation_points(cfg, len(x_train))
@@ -753,7 +828,22 @@ def main() -> None:
             title=f"{name}: KNN + Normal",
             cfg=vis_cfg_ref,
             grid=grid,
-            sigma_per_point=None,
+            n_basis=n_basis,
+            off_bank=(
+                delta_artifacts.get("off_bank")
+                if len(delta_artifacts.get("off_bank", np.zeros((0, 0, x_train.shape[1]), dtype=np.float32))) > 0
+                else margin_artifacts.get("off_bank")
+            ),
+            off_bank_preview=(
+                delta_artifacts.get("off_bank_preview")
+                if len(delta_artifacts.get("off_bank_preview", np.zeros((0, 0, x_train.shape[1]), dtype=np.float32))) > 0
+                else margin_artifacts.get("off_bank_preview")
+            ),
+            off_bank_preview_mask=(
+                delta_artifacts.get("off_bank_preview_mask")
+                if len(delta_artifacts.get("off_bank_preview_mask", np.zeros((0, 0), dtype=bool))) > 0
+                else margin_artifacts.get("off_bank_preview_mask")
+            ),
         )
         if margin_model is not None:
             eval_cfg_margin = resolve_eval_cfg(cfg, method_key="margin", dataset_name=name)
@@ -764,9 +854,9 @@ def main() -> None:
             margin_traj, _ = project_trajectory_tensor(
                 margin_model,
                 x0_t,
-                proj_steps=int(cfg.proj_steps),
-                proj_alpha=float(cfg.proj_alpha),
-                proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+                proj_steps=int(_projector_val(cfg, "steps", 100)),
+                proj_alpha=float(_projector_val(cfg, "alpha", 0.3)),
+                proj_min_steps=int(_projector_val(cfg, "min_steps", 0)),
                 f_abs_stop=margin_eps_used,
             )
             margin_traj = margin_traj.cpu().numpy()
@@ -788,9 +878,9 @@ def main() -> None:
                             m,
                             x0_seed.detach().cpu().numpy(),
                             device=str(c.device),
-                            proj_steps=int(c.proj_steps),
-                            proj_alpha=float(c.proj_alpha),
-                            proj_min_steps=int(getattr(c, "proj_min_steps", 0)),
+                            proj_steps=int(_projector_val(c, "steps", 100)),
+                            proj_alpha=float(_projector_val(c, "alpha", 0.3)),
+                            proj_min_steps=int(_projector_val(c, "min_steps", 0)),
                             f_abs_stop=f_abs_stop,
                         )
                     ),
@@ -830,9 +920,9 @@ def main() -> None:
             delta_traj, _ = project_trajectory_tensor(
                 delta_model,
                 x0_t,
-                proj_steps=int(cfg.proj_steps),
-                proj_alpha=float(cfg.proj_alpha),
-                proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+                proj_steps=int(_projector_val(cfg, "steps", 100)),
+                proj_alpha=float(_projector_val(cfg, "alpha", 0.3)),
+                proj_min_steps=int(_projector_val(cfg, "min_steps", 0)),
                 f_abs_stop=delta_eps_used,
             )
             delta_traj = delta_traj.cpu().numpy()
@@ -854,9 +944,9 @@ def main() -> None:
                             m,
                             x0_seed.detach().cpu().numpy(),
                             device=str(c.device),
-                            proj_steps=int(c.proj_steps),
-                            proj_alpha=float(c.proj_alpha),
-                            proj_min_steps=int(getattr(c, "proj_min_steps", 0)),
+                            proj_steps=int(_projector_val(c, "steps", 100)),
+                            proj_alpha=float(_projector_val(c, "alpha", 0.3)),
+                            proj_min_steps=int(_projector_val(c, "min_steps", 0)),
                             f_abs_stop=f_abs_stop,
                         )
                     ),
@@ -874,11 +964,9 @@ def main() -> None:
                 plans_constr = []
                 plans_proj_off = []
                 plans_constr_off = []
-                use_linear = str(getattr(cfg, "plan_method", "trajectory_opt")).lower() in (
-                    "linear_project",
-                    "linear_proj",
-                    "projection",
-                )
+                planner_name = str(_planner_val(cfg, "method", "traj_opt"))
+                n_waypoints = int(_planner_val(cfg, "steps", 64)) + 1
+                use_linear = planner_name.lower() == "linear_proj"
                 for x0_p, x1_p in plan_pairs:
                     x0_p = true_projection(x0_p[None, :], grid)[0][0]
                     x1_p = true_projection(x1_p[None, :], grid)[0][0]
@@ -887,8 +975,8 @@ def main() -> None:
                         x_start=x0_p,
                         x_goal=x1_p,
                         cfg=cfg,
-                        planner_name=str(getattr(cfg, "plan_method", "trajectory_opt")),
-                        n_waypoints=int(cfg.plan_steps + 1),
+                        planner_name=planner_name,
+                        n_waypoints=n_waypoints,
                         dataset_name=name,
                         periodic_joint=bool(ds.get("periodic_joint", False)),
                         f_abs_stop=delta_eps_used,
@@ -905,8 +993,8 @@ def main() -> None:
                             x_start=x0_p,
                             x_goal=x1_p,
                             cfg=cfg,
-                            planner_name=str(getattr(cfg, "plan_method", "trajectory_opt")),
-                            n_waypoints=int(cfg.plan_steps + 1),
+                            planner_name=planner_name,
+                            n_waypoints=n_waypoints,
                             dataset_name=name,
                             periodic_joint=bool(ds.get("periodic_joint", False)),
                             f_abs_stop=delta_eps_used,
@@ -965,11 +1053,12 @@ def main() -> None:
 
         if margin_model is not None:
             post_fn = _wrap_np_pi if _is_arm_dataset(name) else None
+            use_pybullet_n6 = str(name) == "6d_spatial_arm_up_n6"
             embed_fn = (
                 lambda q, _name=name: shared_workspace_embed_for_eval(
                     _name,
                     q,
-                    ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+                    ur5_use_pybullet_n6=use_pybullet_n6,
                 )
             ) if _is_arm_dataset(name) else None
             project_fn_margin = _make_project_fn(cfg)
@@ -990,19 +1079,14 @@ def main() -> None:
                     "metrics": metrics_map,
                 }
             )
-            if wb_run is not None:
-                wb_step += 1
-                wandb.log(
-                    {f"{name}/margin/{k}": v for k, v in metrics_map.items()},
-                    step=wb_step,
-                )
         if delta_model is not None:
             post_fn = _wrap_np_pi if _is_arm_dataset(name) else None
+            use_pybullet_n6 = str(name) == "6d_spatial_arm_up_n6"
             embed_fn = (
                 lambda q, _name=name: shared_workspace_embed_for_eval(
                     _name,
                     q,
-                    ur5_use_pybullet_n6=(str(getattr(cfg, "ur5_backend", "analytic")).lower() == "pybullet"),
+                    ur5_use_pybullet_n6=use_pybullet_n6,
                 )
             ) if _is_arm_dataset(name) else None
             project_fn_delta = _make_project_fn(cfg)
@@ -1023,12 +1107,6 @@ def main() -> None:
                     "metrics": metrics_map,
                 }
             )
-            if wb_run is not None:
-                wb_step += 1
-                wandb.log(
-                    {f"{name}/delta/{k}": v for k, v in metrics_map.items()},
-                    step=wb_step,
-                )
 
     if eval_results:
         metrics_out = os.path.join(output_root, "metrics.json")
@@ -1095,16 +1173,8 @@ def main() -> None:
             lines.append(line2)
             print(line1)
             print(line2)
-            if wb_run is not None:
-                wb_step += 1
-                wandb.log(
-                    {f"avg/{method}/{k}": v for k, v in avg.items()},
-                    step=wb_step,
-                )
         with open(metrics_txt, "w", encoding="utf-8") as f:
             f.write("\n".join(lines) + "\n")
-    if wb_run is not None:
-        wb_run.finish()
 
 if __name__ == "__main__":
     from common.unified_experiment import run_one as _run_one_unified
@@ -1116,30 +1186,25 @@ if __name__ == "__main__":
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
-    p.add_argument("--legacy", action="store_true", help="run legacy in-file main() flow")
     args = p.parse_args()
-
-    if args.legacy:
-        main()
-    else:
-        methods = [m.strip() for m in str(args.method).split(",") if m.strip()]
-        datasets = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
-        for m in methods:
-            for ds_name in datasets:
-                print(f"[run] method={m} dataset={ds_name}")
-                result, loaded_paths = _run_one_unified(
-                    method=m,
-                    dataset=ds_name,
-                    out_root=str(args.outdir),
-                    seed_override=args.seed,
-                    config_root=str(args.config_root),
-                    cli_overrides=list(args.override),
-                )
-                mm = result["metrics"]
-                print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
-                print(
-                    f"[done] method={m} dataset={ds_name} "
-                    f"proj_dist={mm.get('proj_manifold_dist', float('nan')):.6f} "
-                    f"recall={mm.get('pred_recall', float('nan')):.6f} "
-                    f"FPrate={mm.get('pred_FPrate', float('nan')):.6f}"
-                )
+    methods = [m.strip() for m in str(args.method).split(",") if m.strip()]
+    datasets = [d.strip() for d in str(args.dataset).split(",") if d.strip()]
+    for m in methods:
+        for ds_name in datasets:
+            print(f"[run] method={m} dataset={ds_name}")
+            result, loaded_paths = _run_one_unified(
+                method=m,
+                dataset=ds_name,
+                out_root=str(args.outdir),
+                seed_override=args.seed,
+                config_root=str(args.config_root),
+                cli_overrides=list(args.override),
+            )
+            mm = result["metrics"]
+            print(f"[cfg] loaded_layers={loaded_paths if loaded_paths else '[]'}")
+            print(
+                f"[done] method={m} dataset={ds_name} "
+                f"proj_dist={mm.get('proj_manifold_dist', float('nan')):.6f} "
+                f"recall={mm.get('pred_recall', float('nan')):.6f} "
+                f"FPrate={mm.get('pred_FPrate', float('nan')):.6f}"
+            )

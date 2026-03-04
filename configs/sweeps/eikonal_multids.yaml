@@ -1,7 +1,9 @@
+project: equality_manifold_unified
+entity: pby
 program: runners/run_sweep.py
 method: grid
 metric:
-  name: sweep/objective
+  name: sweep/avg/proj_manifold_dist
   goal: minimize
 parameters:
   lr:
@@ -12,7 +14,7 @@ parameters:
     values: [0.1, 0.25, 0.5]
   lam_eikonal_ortho:
     values: [1.0]
-  proj_steps:
+  projector.steps:
     values: [80]
 command:
   - ${env}
@@ -27,9 +29,3 @@ command:
   - configs
   - --outdir
   - outputs_unified/sweeps/eikonal_multids
-  - --objective-metric
-  - proj_manifold_dist
-  - --objective-name
-  - sweep/objective
-  - --objective-goal
-  - minimize

@@ -7,6 +7,7 @@ import json
 import math
 import os
 import statistics
+import time
 from typing import Any
 
 from common.unified_experiment import VALID_METHODS, run_one
@@ -50,9 +51,6 @@ _RESERVED_CFG_KEYS = {
     "outdir",
     "method_tag",
     "method_tag_prefix",
-    "objective_metric",
-    "objective_name",
-    "objective_goal",
     "override",
 }
 
@@ -79,14 +77,20 @@ def _override_keys(overrides: list[str]) -> set[str]:
 def _with_default_non_gif_overrides(overrides: list[str]) -> list[str]:
     out = list(overrides)
     keys = _override_keys(out)
-    if "plan_save_gif" not in keys:
-        out.append("plan_save_gif=false")
-    if "plan_pybullet_render" not in keys:
-        out.append("plan_pybullet_render=false")
+    if "planner.save_gif" not in keys:
+        out.append("planner.save_gif=false")
+    if "planner.pybullet_render" not in keys:
+        out.append("planner.pybullet_render=false")
     return out
 
 
-def _log_dataset_plots_to_wandb(*, outdir: str, method: str, dataset: str) -> None:
+def _log_dataset_plots_to_wandb(
+    *,
+    outdir: str,
+    method: str,
+    dataset: str,
+    min_mtime: float | None = None,
+) -> None:
     method_dir = os.path.join(outdir, method)
     if not os.path.isdir(method_dir):
         return
@@ -98,6 +102,8 @@ def _log_dataset_plots_to_wandb(*, outdir: str, method: str, dataset: str) -> No
     plot_paths: list[str] = []
     for pat in patterns:
         plot_paths.extend(glob.glob(pat))
+    if min_mtime is not None:
+        plot_paths = [p for p in plot_paths if os.path.getmtime(p) >= float(min_mtime)]
     if not plot_paths:
         return
     for p in sorted(set(plot_paths)):
@@ -251,10 +257,6 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--override", action="append", default=[])
     p.add_argument("--method-tag-prefix", default="method", help="wandb tag prefix, e.g. method:eikonal")
 
-    # Kept for backward compatibility with existing sweep yaml command.
-    p.add_argument("--objective-metric", default="")
-    p.add_argument("--objective-name", default="")
-    p.add_argument("--objective-goal", default="", choices=["", "minimize", "maximize"])
     return p
 
 
@@ -293,6 +295,7 @@ def main() -> None:
 
     all_results: list[dict[str, Any]] = []
     for dataset in datasets:
+        dataset_start_ts = time.time()
         dynamic_overrides = (
             list(global_overrides)
             + list(method_overrides)
@@ -330,7 +333,12 @@ def main() -> None:
             resolved_config=dict(result.get("config", {})),
             loaded_paths=list(loaded_paths),
         )
-        _log_dataset_plots_to_wandb(outdir=outdir, method=method, dataset=dataset)
+        _log_dataset_plots_to_wandb(
+            outdir=outdir,
+            method=method,
+            dataset=dataset,
+            min_mtime=dataset_start_ts,
+        )
 
     avg_all, std_all = _aggregate_metrics(all_results)
     if avg_all:

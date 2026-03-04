@@ -93,8 +93,18 @@ def plot_planned_paths(
     grid_eval = np.stack([xx.ravel(), yy.ravel()], axis=1).astype(np.float32)
     grid_t = torch.from_numpy(grid_eval).to(cfg.device)
     with torch.no_grad():
-        f_grid = model(grid_t).cpu().numpy().reshape(xx.shape)
-        v = (0.5 * (f_grid ** 2)).reshape(xx.shape)
+        f_raw = model(grid_t).detach().cpu().numpy()
+        if f_raw.ndim == 1:
+            f_grid = f_raw.reshape(xx.shape)
+            near_levels = [-float(zero_level_eps), float(zero_level_eps)]
+        elif f_raw.ndim == 2 and f_raw.shape[1] == 1:
+            f_grid = f_raw[:, 0].reshape(xx.shape)
+            near_levels = [-float(zero_level_eps), float(zero_level_eps)]
+        else:
+            # Vector-valued residual field (e.g. VAE): use residual norm for contouring.
+            f_grid = np.linalg.norm(f_raw, axis=1).reshape(xx.shape)
+            near_levels = [0.0, float(zero_level_eps)]
+        v = 0.5 * (f_grid ** 2)
     v_max = float(np.percentile(v, 95))
     levels = (np.linspace(0.0, 1.0, 25) ** 3) * v_max
 
@@ -102,8 +112,7 @@ def plot_planned_paths(
     if levels.size > 1:
         cs = plt.contour(xx, yy, v, levels=levels[1:], linewidths=0.8)
         plt.clabel(cs, inline=1, fontsize=7, fmt="%.2f")
-    eps = float(zero_level_eps)
-    plt.contourf(xx, yy, f_grid, levels=[-eps, eps], colors=["#ffa500"], alpha=0.55)
+    plt.contourf(xx, yy, f_grid, levels=near_levels, colors=["#ffa500"], alpha=0.55)
     plt.scatter(x_train[:, 0], x_train[:, 1], s=4, alpha=0.6, label="data", zorder=3)
     cmap = plt.get_cmap("tab10")
     all_trajs = [("projected (on)", "-", t) for t in plans_proj] + [("constrained (on)", "--", t) for t in plans_constr]
@@ -145,8 +154,18 @@ def plot_planned_paths_off(
     grid_eval = np.stack([xx.ravel(), yy.ravel()], axis=1).astype(np.float32)
     grid_t = torch.from_numpy(grid_eval).to(cfg.device)
     with torch.no_grad():
-        f_grid = model(grid_t).cpu().numpy().reshape(xx.shape)
-        v = (0.5 * (f_grid ** 2)).reshape(xx.shape)
+        f_raw = model(grid_t).detach().cpu().numpy()
+        if f_raw.ndim == 1:
+            f_grid = f_raw.reshape(xx.shape)
+            near_levels = [-float(zero_level_eps), float(zero_level_eps)]
+        elif f_raw.ndim == 2 and f_raw.shape[1] == 1:
+            f_grid = f_raw[:, 0].reshape(xx.shape)
+            near_levels = [-float(zero_level_eps), float(zero_level_eps)]
+        else:
+            # Vector-valued residual field (e.g. VAE): use residual norm for contouring.
+            f_grid = np.linalg.norm(f_raw, axis=1).reshape(xx.shape)
+            near_levels = [0.0, float(zero_level_eps)]
+        v = 0.5 * (f_grid ** 2)
     v_max = float(np.percentile(v, 95))
     levels = (np.linspace(0.0, 1.0, 25) ** 3) * v_max
 
@@ -154,8 +173,7 @@ def plot_planned_paths_off(
     if levels.size > 1:
         cs = plt.contour(xx, yy, v, levels=levels[1:], linewidths=0.8)
         plt.clabel(cs, inline=1, fontsize=7, fmt="%.2f")
-    eps = float(zero_level_eps)
-    plt.contourf(xx, yy, f_grid, levels=[-eps, eps], colors=["#ffa500"], alpha=0.55)
+    plt.contourf(xx, yy, f_grid, levels=near_levels, colors=["#ffa500"], alpha=0.55)
     plt.scatter(x_train[:, 0], x_train[:, 1], s=4, alpha=0.6, label="data", zorder=3)
     for i, traj in enumerate(plans_proj_off):
         plt.plot(traj[:, 0], traj[:, 1], ":", color="gold", linewidth=2.0, label="projected (off)" if i == 0 else None)
@@ -408,30 +426,56 @@ def plot_knn_normals(
     title: str,
     cfg: Any,
     grid: np.ndarray | None = None,
-    sigma_per_point: np.ndarray | None = None,
+    n_basis: np.ndarray | None = None,
+    off_bank: np.ndarray | None = None,
+    off_bank_preview: np.ndarray | None = None,
+    off_bank_preview_mask: np.ndarray | None = None,
 ) -> None:
+    def _infer_structured_surface(g: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray] | None:
+        if g.ndim != 2 or g.shape[1] != 3 or len(g) < 16:
+            return None
+        # Only render when (x,y)->z behaves like a regular grid; otherwise skip to avoid noisy surfaces.
+        xy = np.round(g[:, :2].astype(np.float64), 6)
+        ux = np.unique(xy[:, 0])
+        uy = np.unique(xy[:, 1])
+        if len(ux) * len(uy) != len(g):
+            return None
+        if len(ux) < 3 or len(uy) < 3:
+            return None
+        ix = np.searchsorted(ux, xy[:, 0])
+        iy = np.searchsorted(uy, xy[:, 1])
+        zgrid = np.full((len(ux), len(uy)), np.nan, dtype=np.float64)
+        for p, q, z in zip(ix, iy, g[:, 2].astype(np.float64)):
+            if np.isnan(zgrid[p, q]):
+                zgrid[p, q] = z
+            elif abs(zgrid[p, q] - z) > 1e-6:
+                return None
+        if np.isnan(zgrid).any():
+            return None
+        xx, yy = np.meshgrid(ux, uy, indexing="ij")
+        return xx.astype(np.float32), yy.astype(np.float32), zgrid.astype(np.float32)
+
     d2 = _pairwise_sqdist(x, x)
-    knn_off_data_filter_points = _effective_knn_off_data_filter_points(cfg, len(x))
+    if n_basis is None or n_basis.shape[0] != len(x) or n_basis.shape[1] != x.shape[1]:
+        raise ValueError("plot_knn_normals requires n_basis with shape (N, d, codim)")
     if x.shape[1] == 3:
         fig = plt.figure(figsize=(6, 5))
         ax = fig.add_subplot(111, projection="3d")
         if grid is not None:
-            m = int(math.sqrt(len(grid)))
-            if m * m == len(grid):
-                gx = grid[:, 0].reshape(m, m)
-                gy = grid[:, 1].reshape(m, m)
-                gz = grid[:, 2].reshape(m, m)
+            surf = _infer_structured_surface(grid)
+            if surf is not None:
+                gx, gy, gz = surf
                 ax.plot_surface(gx, gy, gz, color="lightgray", alpha=0.2, linewidth=0)
         ax.scatter(x[:, 0], x[:, 1], x[:, 2], s=6, alpha=0.35, color="gray")
     else:
         plt.figure(figsize=(6, 5))
         plt.scatter(x[:, 0], x[:, 1], s=6, alpha=0.35, color="gray")
+    basis_colors = ["#ef4444", "#06b6d4", "#22c55e", "#f59e0b"]
     for idx in idx_list:
         nn_idx = np.argsort(d2, axis=1)[idx, 1 : k + 1]
         nbrs = x[nn_idx]
-        _, evecs, _, _ = _local_pca_frame(nbrs, x[idx])
-        nvec = evecs[:, 0]
-        nvec = nvec / (np.linalg.norm(nvec) + 1e-12)
+        basis = n_basis[idx]
+        codim = int(basis.shape[1])
 
         if x.shape[1] == 3:
             ax.scatter(nbrs[:, 0], nbrs[:, 1], nbrs[:, 2], s=6, color="blue")
@@ -440,39 +484,63 @@ def plot_knn_normals(
             plt.scatter(nbrs[:, 0], nbrs[:, 1], s=6, color="blue")
             plt.scatter(x[idx, 0], x[idx, 1], s=9, color="red")
 
-        m = 30
-        if sigma_per_point is not None:
-            r = float(sigma_per_point[idx])
-            r_pos_vis = r
-            r_neg_vis = r
-            s = np.random.randn(m, 1).astype(np.float32) * (r / 1.645)
+        for j in range(codim):
+            nvec = basis[:, j] / (np.linalg.norm(basis[:, j]) + 1e-12)
+            c = basis_colors[j % len(basis_colors)]
+            if x.shape[1] == 3:
+                ax.quiver(
+                    x[idx, 0], x[idx, 1], x[idx, 2],
+                    nvec[0], nvec[1], nvec[2],
+                    length=0.35, normalize=True, color=c, linewidth=1.2,
+                )
+            else:
+                p_pos = x[idx] + nvec * 0.35
+                p_neg = x[idx] - nvec * 0.35
+                plt.plot([p_neg[0], p_pos[0]], [p_neg[1], p_pos[1]], color=c, linewidth=1.1, alpha=0.95)
+
+        bank_pts = None
+        if off_bank is not None and off_bank.ndim == 3 and idx < off_bank.shape[0]:
+            bank_pts = off_bank[idx]
+            if bank_pts.ndim == 2 and bank_pts.shape[1] == x.shape[1]:
+                bank_pts = bank_pts[np.isfinite(bank_pts).all(axis=1)]
+        if bank_pts is None:
+            bank_pts = np.zeros((0, x.shape[1]), dtype=np.float32)
+        preview_pts = None
+        preview_mask = None
+        if (
+            off_bank_preview is not None
+            and off_bank_preview_mask is not None
+            and off_bank_preview.ndim == 3
+            and off_bank_preview_mask.ndim == 2
+            and idx < off_bank_preview.shape[0]
+            and idx < off_bank_preview_mask.shape[0]
+        ):
+            preview_pts = off_bank_preview[idx]
+            preview_mask = off_bank_preview_mask[idx].astype(bool)
+            if preview_pts.ndim == 2 and preview_pts.shape[1] == x.shape[1]:
+                finite = np.isfinite(preview_pts).all(axis=1)
+                preview_pts = preview_pts[finite]
+                preview_mask = preview_mask[: len(finite)][finite]
+        if preview_pts is not None and preview_mask is not None and len(preview_pts) > 0:
+            keep_pts = preview_pts[preview_mask]
+            drop_pts = preview_pts[~preview_mask]
+            if x.shape[1] == 3:
+                if len(keep_pts) > 0:
+                    ax.scatter(keep_pts[:, 0], keep_pts[:, 1], keep_pts[:, 2], s=4, color="green", alpha=0.45)
+                if len(drop_pts) > 0:
+                    ax.scatter(drop_pts[:, 0], drop_pts[:, 1], drop_pts[:, 2], s=4, color="orange", alpha=0.65)
+            else:
+                if len(keep_pts) > 0:
+                    plt.scatter(keep_pts[:, 0], keep_pts[:, 1], s=4, color="green", alpha=0.45)
+                if len(drop_pts) > 0:
+                    plt.scatter(drop_pts[:, 0], drop_pts[:, 1], s=4, color="orange", alpha=0.65)
         else:
-            sigmas = _as_sigmas(cfg.sigmas)
-            sigma = np.random.choice(sigmas, size=(m, 1))
-            s = np.random.randn(m, 1).astype(np.float32) * sigma
-            r_pos_vis = 0.35
-            r_neg_vis = 0.35
-        delta_pts = x[idx : idx + 1] + s * nvec.reshape(1, -1)
-        mask = np.ones(len(delta_pts), dtype=bool)
-        if cfg.use_knn_filter:
-            d2_off = _pairwise_sqdist(delta_pts, x)
-            nn_idx = np.argsort(d2_off, axis=1)[:, :knn_off_data_filter_points]
-            mask &= (nn_idx == idx).any(axis=1)
-        pass_pts = delta_pts[mask]
-        fail_pts = delta_pts[~mask]
-        if x.shape[1] == 3:
-            if len(pass_pts) > 0:
-                ax.scatter(pass_pts[:, 0], pass_pts[:, 1], pass_pts[:, 2], s=3, color="green", alpha=0.5)
-            if len(fail_pts) > 0:
-                ax.scatter(fail_pts[:, 0], fail_pts[:, 1], fail_pts[:, 2], s=3, color="orange", alpha=0.5)
-        else:
-            if len(pass_pts) > 0:
-                plt.scatter(pass_pts[:, 0], pass_pts[:, 1], s=3, color="green", alpha=0.45)
-            if len(fail_pts) > 0:
-                plt.scatter(fail_pts[:, 0], fail_pts[:, 1], s=3, color="orange", alpha=0.45)
-            p_pos = x[idx] + nvec * float(r_pos_vis)
-            p_neg = x[idx] - nvec * float(r_neg_vis)
-            plt.plot([p_neg[0], p_pos[0]], [p_neg[1], p_pos[1]], color="gray", linewidth=1.1, alpha=0.95)
+            if x.shape[1] == 3:
+                if len(bank_pts) > 0:
+                    ax.scatter(bank_pts[:, 0], bank_pts[:, 1], bank_pts[:, 2], s=4, color="green", alpha=0.45)
+            else:
+                if len(bank_pts) > 0:
+                    plt.scatter(bank_pts[:, 0], bank_pts[:, 1], s=4, color="green", alpha=0.45)
     if x.shape[1] == 3:
         ax.set_title(title)
         fig.tight_layout()

@@ -50,6 +50,7 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "6d_spatial_arm_up_n6": {},
     "6d_spatial_arm_up_n6_py": {},
     "6d_workspace_sine_surface_pose": {},
+    "6d_workspace_sine_surface_pose_traj": {},
 }
 
 
@@ -174,13 +175,22 @@ def sample_eval_seed_points(
     return np.concatenate(out, axis=0).astype(np.float32)
 
 
-def compute_eps_stop(model: nn.Module, x_train: np.ndarray, cfg: Any) -> float:
+def compute_eps_stop(
+    model: nn.Module,
+    x_train: np.ndarray,
+    cfg: Any,
+    *,
+    return_h_on: bool = False,
+) -> float | tuple[float, np.ndarray]:
     with torch.no_grad():
         f_on = model(torch.from_numpy(x_train.astype(np.float32)).to(cfg.device))
         if f_on.dim() == 1:
             f_on = f_on.unsqueeze(1)
         h_on = torch.linalg.norm(f_on, dim=1).detach().cpu().numpy().reshape(-1)
-    return float(np.percentile(np.abs(h_on), float(cfg.zero_eps_quantile)))
+    eps = float(np.percentile(np.abs(h_on), float(cfg.zero_eps_quantile)))
+    if bool(return_h_on):
+        return eps, h_on.astype(np.float32)
+    return eps
 
 
 def _nn_dist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
@@ -215,6 +225,38 @@ def _true_projection(x: np.ndarray, grid: np.ndarray) -> tuple[np.ndarray, np.nd
         return gg[idx], d
 
 
+def _workspace_surface_z_and_normal_from_xy(x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    # Keep consistent with datasets.constraint_datasets._workspace_sine_surface_pose_n6
+    a1, a2 = 0.55, 0.35
+    fx, fy = 1.2, 1.0
+    z = (a1 * np.sin(fx * x) + a2 * np.cos(fy * y)).astype(np.float32)
+    dzdx = (a1 * fx * np.cos(fx * x)).astype(np.float32)
+    dzdy = (-a2 * fy * np.sin(fy * y)).astype(np.float32)
+    n = np.stack([-dzdx, -dzdy, np.ones_like(dzdx)], axis=1).astype(np.float32)
+    n /= (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
+    return z, n
+
+
+def _workspace_pose_analytic_target_embed(embed_xyz_zaxis: np.ndarray) -> np.ndarray:
+    x = embed_xyz_zaxis[:, 0].astype(np.float32)
+    y = embed_xyz_zaxis[:, 1].astype(np.float32)
+    z_true, n_true = _workspace_surface_z_and_normal_from_xy(x, y)
+    tgt = np.concatenate(
+        [x[:, None], y[:, None], z_true[:, None], n_true.astype(np.float32)],
+        axis=1,
+    ).astype(np.float32)
+    return tgt
+
+
+def _workspace_pose_analytic_dist_embed(embed_xyz_zaxis: np.ndarray) -> np.ndarray:
+    tgt = _workspace_pose_analytic_target_embed(embed_xyz_zaxis)
+    d = np.linalg.norm(
+        embed_xyz_zaxis.astype(np.float32) - tgt.astype(np.float32),
+        axis=1,
+    ).astype(np.float32)
+    return d
+
+
 def evaluate_bidirectional_chamfer(
     model: nn.Module,
     x_train: np.ndarray,
@@ -223,6 +265,9 @@ def evaluate_bidirectional_chamfer(
     dataset_name: str | None = None,
     embed_fn: Callable[[np.ndarray], np.ndarray] | None = None,
     postprocess_fn: Callable[[np.ndarray], np.ndarray] | None = None,
+    eps_stop_override: float | None = None,
+    x0_override: np.ndarray | None = None,
+    learned_samples_override: np.ndarray | None = None,
 ) -> dict[str, float]:
     rng = _fixed_rng()
     if dataset_name is not None:
@@ -237,14 +282,17 @@ def evaluate_bidirectional_chamfer(
     if postprocess_fn is not None:
         gt_samples = postprocess_fn(gt_samples).astype(np.float32)
 
-    eps_stop = compute_eps_stop(model, x_train, cfg)
-    x0 = sample_eval_seed_points(x_train, cfg)
-    if postprocess_fn is not None:
-        x0 = postprocess_fn(x0)
-    learned_samples, _ = project_fn(model, x0, eps_stop)
-    learned_samples = learned_samples.astype(np.float32)
-    if postprocess_fn is not None:
-        learned_samples = postprocess_fn(learned_samples)
+    eps_stop = float(eps_stop_override) if eps_stop_override is not None else float(compute_eps_stop(model, x_train, cfg))
+    if learned_samples_override is not None:
+        learned_samples = learned_samples_override.astype(np.float32)
+    else:
+        x0 = x0_override.astype(np.float32) if x0_override is not None else sample_eval_seed_points(x_train, cfg)
+        if postprocess_fn is not None:
+            x0 = postprocess_fn(x0)
+        learned_samples, _ = project_fn(model, x0, eps_stop)
+        learned_samples = learned_samples.astype(np.float32)
+        if postprocess_fn is not None:
+            learned_samples = postprocess_fn(learned_samples)
 
     if embed_fn is not None:
         a = embed_fn(gt_samples)
@@ -287,26 +335,37 @@ def evaluate_projection_metrics(
     if postprocess_fn is not None:
         grid = postprocess_fn(grid).astype(np.float32)
 
-    eval_eps_used = compute_eps_stop(model, x_train, cfg)
+    eval_eps_used, h_on = compute_eps_stop(model, x_train, cfg, return_h_on=True)
     x_eval = sample_eval_seed_points(x_train, cfg)
     if postprocess_fn is not None:
         x_eval = postprocess_fn(x_eval).astype(np.float32)
     with torch.no_grad():
-        f_on = model(torch.from_numpy(x_train.astype(np.float32)).to(cfg.device))
-        if f_on.dim() == 1:
-            f_on = f_on.unsqueeze(1)
-        h_on = torch.linalg.norm(f_on, dim=1).detach().cpu().numpy().reshape(-1)
         f_eval = model(torch.from_numpy(x_eval.astype(np.float32)).to(cfg.device))
         if f_eval.dim() == 1:
             f_eval = f_eval.unsqueeze(1)
         h_eval = torch.linalg.norm(f_eval, dim=1).detach().cpu().numpy().reshape(-1)
     on_mean_v = float(np.mean(0.5 * (h_on ** 2)))
 
+    use_workspace_analytic = (
+        str(dataset_name) in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj")
+        and embed_fn is not None
+    )
+
     if embed_fn is not None:
         grid_metric = embed_fn(grid)
         x_eval_metric = embed_fn(x_eval)
-        _, d_true_eval = _true_projection(x_eval_metric, grid_metric)
-        dist_space = "workspace"
+        if (
+            use_workspace_analytic
+            and x_eval_metric.ndim == 2
+            and x_eval_metric.shape[1] >= 6
+        ):
+            d_true_eval = _workspace_pose_analytic_dist_embed(
+                x_eval_metric[:, :6].astype(np.float32)
+            )
+            dist_space = "workspace_analytic"
+        else:
+            _, d_true_eval = _true_projection(x_eval_metric, grid_metric)
+            dist_space = "workspace"
     else:
         grid_metric = grid
         x_eval_metric = x_eval
@@ -320,7 +379,18 @@ def evaluate_projection_metrics(
 
     if embed_fn is not None:
         proj_metric_all = embed_fn(proj)
-        proj_true, _ = _true_projection(x_eval_metric, grid_metric)
+        if (
+            use_workspace_analytic
+            and proj_metric_all.ndim == 2
+            and proj_metric_all.shape[1] >= 6
+            and x_eval_metric.ndim == 2
+            and x_eval_metric.shape[1] >= 6
+        ):
+            proj_true = _workspace_pose_analytic_target_embed(
+                x_eval_metric[:, :6].astype(np.float32)
+            )
+        else:
+            proj_true, _ = _true_projection(x_eval_metric, grid_metric)
     else:
         proj_metric_all = proj
         proj_true, _ = _true_projection(x_eval_metric, grid_metric)
@@ -328,7 +398,16 @@ def evaluate_projection_metrics(
     proj_mask = np.isfinite(proj).all(axis=1)
     if np.any(proj_mask):
         proj_to_trueproj = np.linalg.norm(proj_metric_all[proj_mask] - proj_true[proj_mask], axis=1)
-        proj_final_true_dist = _nn_dist(proj_metric_all[proj_mask], grid_metric)
+        if (
+            use_workspace_analytic
+            and proj_metric_all.ndim == 2
+            and proj_metric_all.shape[1] >= 6
+        ):
+            proj_final_true_dist = _workspace_pose_analytic_dist_embed(
+                proj_metric_all[proj_mask, :6].astype(np.float32)
+            )
+        else:
+            proj_final_true_dist = _nn_dist(proj_metric_all[proj_mask], grid_metric)
         with torch.no_grad():
             f_proj = model(torch.from_numpy(proj[proj_mask].astype(np.float32)).to(cfg.device))
             if f_proj.dim() == 1:
@@ -343,15 +422,25 @@ def evaluate_projection_metrics(
         proj_steps_mean = float("nan")
 
     tau = float(cfg.eval_tau_ratio) * float(np.mean(grid_metric.max(axis=0) - grid_metric.min(axis=0)))
-    near = d_true_eval < tau
-    pred_zero = np.abs(h_eval) < eval_eps_used
-    coverage = float(np.mean(pred_zero[near])) if np.any(near) else float("nan")
-    false_pos = float(np.mean(pred_zero[~near])) if np.any(~near) else float("nan")
-    if np.any(pred_zero):
-        pred_on_true_dist = float(np.mean(d_true_eval[pred_zero]))
-        pred_on_true_ratio = float(np.mean(near[pred_zero]))
+
+    # Recall: measure how many GT manifold points are classified as on-manifold by learned constraint.
+    with torch.no_grad():
+        f_gt = model(torch.from_numpy(grid.astype(np.float32)).to(cfg.device))
+        if f_gt.dim() == 1:
+            f_gt = f_gt.unsqueeze(1)
+        h_gt = torch.linalg.norm(f_gt, dim=1).detach().cpu().numpy().reshape(-1)
+    pred_on_gt = np.abs(h_gt) < eval_eps_used
+    coverage = float(np.mean(pred_on_gt)) if pred_on_gt.size > 0 else float("nan")
+
+    # False-positive rate: still measured on sampled eval points that are far from GT manifold.
+    pred_zero_eval = np.abs(h_eval) < eval_eps_used
+    far_eval = d_true_eval >= tau
+    false_pos = float(np.mean(pred_zero_eval[far_eval])) if np.any(far_eval) else float("nan")
+
+    # Precision: use projected points as predicted on-manifold set and check GT distance against tau.
+    if np.any(proj_mask):
+        pred_on_true_ratio = float(np.mean(proj_final_true_dist < tau))
     else:
-        pred_on_true_dist = float("nan")
         pred_on_true_ratio = float("nan")
 
     metrics = {
@@ -362,7 +451,6 @@ def evaluate_projection_metrics(
         "proj_steps": proj_steps_mean,
         "pred_recall": coverage,
         "pred_FPrate": false_pos,
-        "pred_manifold_dist": pred_on_true_dist,
         "pred_precision": pred_on_true_ratio,
         "eval_eps_used": float(eval_eps_used),
         "dist_space": dist_space,

@@ -38,6 +38,27 @@ from common.plot_common import plot_contour_traj_2d
 N6_WORKSPACE_VIS_POINTS_DEFAULT = 90
 ZERO_EPS_QUANTILE_DEFAULT = float(DEFAULT_EVAL_CFG["zero_eps_quantile"])
 
+
+def _proj_from_cfg(cfg: Any) -> tuple[float, int, int]:
+    proj = getattr(cfg, "projector", None)
+    if isinstance(proj, dict):
+        alpha = float(proj.get("alpha", 0.3))
+        steps = int(proj.get("steps", 100))
+        min_steps = int(proj.get("min_steps", 30))
+        return alpha, steps, min_steps
+    return (
+        float(getattr(cfg, "proj_alpha", 0.3)),
+        int(getattr(cfg, "proj_steps", 100)),
+        int(getattr(cfg, "proj_min_steps", 30)),
+    )
+
+
+def _pln(cfg: Any, key: str, default: Any) -> Any:
+    pln = getattr(cfg, "planner", None)
+    if isinstance(pln, dict) and key in pln:
+        return pln[key]
+    return default
+
 def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title: str) -> None:
     ep = hist["epoch"]
     f_abs = hist["f_abs_mean"]
@@ -86,6 +107,8 @@ def _plot_constraint_2d(
     title: str,
     axis_labels: tuple[str, str],
     cfg: Any,
+    worst_traj: np.ndarray | None = None,
+    worst_x0: np.ndarray | None = None,
 ) -> None:
     plot_contour_traj_2d(
         model=model,
@@ -96,6 +119,8 @@ def _plot_constraint_2d(
         axis_labels=axis_labels,
         cfg=cfg,
         line_color="green",
+        worst_traj=worst_traj,
+        worst_x0=worst_x0,
     )
 
 
@@ -585,6 +610,7 @@ def _plot_ur5_eval_projection_workspace_orientation_3d(
     plt.close(fig)
 
 
+
 def _plot_planar_arm_planning(
     model: nn.Module,
     name: str,
@@ -593,462 +619,16 @@ def _plot_planar_arm_planning(
     cfg: Any,
     render_pybullet: bool = True,
 ) -> list[np.ndarray]:
-    if name == "2d_planar_arm_line_n2":
-        lengths = [1.0, 0.8]
-        y_line = 0.3
-        is_spatial = False
-        use_pybullet_n6 = False
-    elif name == "3d_planar_arm_line_n3":
-        lengths = [1.0, 0.8, 0.6]
-        y_line = 0.35
-        is_spatial = False
-        use_pybullet_n6 = False
-    elif name == "3d_spatial_arm_plane_n3":
-        lengths = [1.0, 0.8]
-        y_line = 0.35  # here means z-plane value
-        is_spatial = True
-        use_pybullet_n6 = False
-    elif name == "3d_spatial_arm_circle_n3":
-        lengths = [1.0, 0.8]
-        y_line = None
-        is_spatial = True
-        use_pybullet_n6 = False
-    elif name == "6d_spatial_arm_up_n6":
-        lengths = list(UR5_LINK_LENGTHS)
-        y_line = None
-        is_spatial = True
-        use_pybullet_n6 = True
-    elif name == "6d_spatial_arm_up_n6_py":
-        lengths = list(UR5_LINK_LENGTHS)
-        y_line = None
-        is_spatial = True
-        use_pybullet_n6 = False
-    else:
-        return []
+    from core.planner import _plot_planar_arm_planning as _core_plot_planar_arm_planning
 
-    # Sample start/goal from a denser manifold candidate set, then enforce workspace distance.
-    try:
-        x_dense, grid_dense = generate_dataset(name, cfg)
-        cand = grid_dense if (grid_dense is not None and len(grid_dense) >= 2) else x_dense
-        if cand.shape[1] != x_train.shape[1]:
-            cand = x_train
-    except Exception:
-        cand = x_train
-
-    cases: list[tuple[np.ndarray, np.ndarray, float]] = []
-    lo = float(cfg.plan_pair_min_ratio) * max(float(sum(lengths)), 1e-6)
-    hi = float(cfg.plan_pair_max_ratio) * max(float(sum(lengths)), 1e-6)
-    if is_spatial:
-        q_c = cand.astype(np.float32)
-        ee_c = spatial_fk(q_c, lengths, use_pybullet_n6=use_pybullet_n6)[:, -1, :]  # (N,3)
-        target = 0.5 * (lo + hi)
-    else:
-        q_c = None
-        ee_c = None
-        target = 0.5 * (lo + hi)
-    for _ in range(3):
-        if not is_spatial:
-            q_start, q_goal, ee_dist, _ = pick_far_pair_workspace_planar(
-                x=cand.astype(np.float32),
-                lengths=lengths,
-                min_ratio=float(cfg.plan_pair_min_ratio),
-                max_ratio=float(cfg.plan_pair_max_ratio),
-                tries=int(cfg.plan_pair_tries),
-            )
-        else:
-            best = None
-            best_delta = 1e18
-            for _t in range(max(1, int(cfg.plan_pair_tries))):
-                i = int(np.random.randint(0, len(q_c)))
-                j = int(np.random.randint(0, len(q_c)))
-                if i == j:
-                    continue
-                d = float(np.linalg.norm(ee_c[i] - ee_c[j]))
-                if lo <= d <= hi:
-                    best = (q_c[i], q_c[j], d)
-                    break
-                delta = abs(d - target)
-                if delta < best_delta:
-                    best_delta = delta
-                    best = (q_c[i], q_c[j], d)
-            assert best is not None
-            q_start, q_goal, ee_dist = best[0], best[1], float(best[2])
-        cases.append((q_start, q_goal, ee_dist))
-
-    # Precompute constraint 0-level overlay once.
-    contour_2d = None
-    zpts_3d = None
-    if x_train.shape[1] == 2:
-        mins, maxs = eval_bounds_from_train(x_train, cfg)
-        mins = mins.copy()
-        maxs = maxs.copy()
-        mins[0] = min(float(mins[0]), -np.pi)
-        maxs[0] = max(float(maxs[0]), np.pi)
-        mins[1] = min(float(mins[1]), -np.pi)
-        maxs[1] = max(float(maxs[1]), np.pi)
-        q1g, q2g = np.meshgrid(
-            np.linspace(float(mins[0]), float(maxs[0]), 260),
-            np.linspace(float(mins[1]), float(maxs[1]), 260),
-        )
-        grid = np.stack([q1g, q2g], axis=2).reshape(-1, 2).astype(np.float32)
-        with torch.no_grad():
-            fg = model(torch.from_numpy(grid).to(cfg.device))
-            if fg.dim() == 1:
-                fg = fg.unsqueeze(1)
-            f1 = fg[:, 0].detach().cpu().numpy().reshape(q1g.shape)
-        contour_2d = (q1g, q2g, f1, mins, maxs)
-    elif x_train.shape[1] == 3:
-        mins3, maxs3 = eval_bounds_from_train(x_train, cfg)
-        q1g, q2g, q3g = np.meshgrid(
-            np.linspace(float(mins3[0]), float(maxs3[0]), 34),
-            np.linspace(float(mins3[1]), float(maxs3[1]), 34),
-            np.linspace(float(mins3[2]), float(maxs3[2]), 34),
-            indexing="ij",
-        )
-        grid3 = np.stack([q1g.ravel(), q2g.ravel(), q3g.ravel()], axis=1).astype(np.float32)
-        with torch.no_grad():
-            f_on = model(torch.from_numpy(x_train.astype(np.float32)).to(cfg.device))
-            if f_on.dim() == 1:
-                f_on = f_on.unsqueeze(1)
-            eps_q = float(getattr(cfg, "zero_eps_quantile", ZERO_EPS_QUANTILE_DEFAULT))
-            eps0 = float(np.percentile(np.abs(f_on[:, 0].detach().cpu().numpy()), eps_q))
-            vals = []
-            chunk = max(2048, int(cfg.surface_eval_chunk))
-            for s in range(0, len(grid3), chunk):
-                e = min(len(grid3), s + chunk)
-                fg = model(torch.from_numpy(grid3[s:e]).to(cfg.device))
-                if fg.dim() == 1:
-                    fg = fg.unsqueeze(1)
-                vals.append(fg[:, 0].detach().cpu().numpy())
-            f1g = np.concatenate(vals, axis=0)
-        zmask = np.abs(f1g) <= max(eps0, 1e-4)
-        zpts_3d = grid3[zmask]
-        if len(zpts_3d) > 4500:
-            idx = np.random.choice(len(zpts_3d), size=4500, replace=False)
-            zpts_3d = zpts_3d[idx]
-
-    fig = plt.figure(figsize=(10.5, 12.0))
-    q_paths_render: list[np.ndarray] = []
-    for row, (q_start, q_goal, ee_dist) in enumerate(cases):
-        if str(cfg.plan_init_mode).lower() == "workspace_ik":
-            q_lin = init_path_via_workspace_ik(
-                q_start=q_start.astype(np.float32),
-                q_goal=q_goal.astype(np.float32),
-                lengths=lengths,
-                is_spatial=is_spatial,
-                use_pybullet_n6=use_pybullet_n6,
-                n_waypoints=140,
-                device=str(cfg.device),
-            )
-        else:
-            q_lin = init_path_joint_spline(
-                q_start=q_start.astype(np.float32),
-                q_goal=q_goal.astype(np.float32),
-                n_waypoints=140,
-                mid_noise=float(cfg.plan_joint_mid_noise),
-            )
-        q_path = plan_path(
-            model=model,
-            x_start=q_start.astype(np.float32),
-            x_goal=q_goal.astype(np.float32),
-            cfg=cfg,
-            planner_name=str(getattr(cfg, "plan_method", "trajectory_opt")),
-            n_waypoints=int(q_lin.shape[0]),
-            dataset_name=str(name),
-            periodic_joint=bool(is_arm_dataset(name)),
-            init_path=q_lin.astype(np.float32),
-        )
-        q_paths_render.append(q_path.astype(np.float32))
-        q_init = q_lin.astype(np.float32)
-        if not is_spatial:
-            joints = planar_fk(q_path, lengths)
-            ee = joints[:, -1, :]
-        else:
-            joints = spatial_fk(q_path, lengths, use_pybullet_n6=use_pybullet_n6)
-            ee = joints[:, -1, :]
-            joints_init = spatial_fk(q_init, lengths, use_pybullet_n6=use_pybullet_n6)
-            ee_init = joints_init[:, -1, :]
-
-        left_idx = 2 * row + 1
-        right_idx = 2 * row + 2
-        if q_path.shape[1] == 2:
-            ax1 = fig.add_subplot(3, 2, left_idx)
-            assert contour_2d is not None
-            q1g, q2g, f1, mins, maxs = contour_2d
-            ax1.contour(q1g, q2g, f1, levels=[0.0], colors=["red"], linewidths=1.4, alpha=0.95)
-            q_unw = np.unwrap(q_path, axis=0)
-            ax1.plot(q_unw[:, 0], q_unw[:, 1], "-", color="#0ea5e9", lw=1.2, alpha=0.85, label="planned")
-            ax1.scatter([q_unw[0, 0], q_unw[-1, 0]], [q_unw[0, 1], q_unw[-1, 1]], c=["blue", "red"], s=20, zorder=3)
-            ax1.set_xlim(float(mins[0]), float(maxs[0]))
-            ax1.set_ylim(float(mins[1]), float(maxs[1]))
-            ax1.set_aspect("equal", adjustable="box")
-            ax1.set_xlabel("q1")
-            ax1.set_ylabel("q2")
-            ax1.set_title(f"Joint Path #{row+1} (ee={ee_dist:.2f})", fontsize=10)
-            ax1.grid(alpha=0.25)
-            ax1.legend(loc="best", fontsize=8)
-        elif q_path.shape[1] == 3:
-            ax1 = fig.add_subplot(3, 2, left_idx, projection="3d")
-            q_unw = np.unwrap(q_path, axis=0)
-            if zpts_3d is not None and len(zpts_3d) > 0:
-                ax1.scatter(zpts_3d[:, 0], zpts_3d[:, 1], zpts_3d[:, 2], s=1.0, c="red", alpha=0.18)
-            ax1.plot(q_unw[:, 0], q_unw[:, 1], q_unw[:, 2], "-", color="#0ea5e9", lw=1.0, alpha=0.8, label="planned")
-            ax1.scatter([q_unw[0, 0]], [q_unw[0, 1]], [q_unw[0, 2]], c="blue", s=20)
-            ax1.scatter([q_unw[-1, 0]], [q_unw[-1, 1]], [q_unw[-1, 2]], c="red", s=20)
-            ax1.set_xlabel("q1")
-            ax1.set_ylabel("q2")
-            ax1.set_zlabel("q3")
-            ax1.set_title(f"Joint Path #{row+1} (ee={ee_dist:.2f})", fontsize=10)
-            ax1.legend(loc="best", fontsize=8)
-        else:
-            # 4D joint path: PCA to 3D for visualization.
-            ax1 = fig.add_subplot(3, 2, left_idx, projection="3d")
-            q_ref = x_train.astype(np.float32)
-            mu = q_ref.mean(axis=0, keepdims=True)
-            q0 = q_ref - mu
-            _, _, vt = np.linalg.svd(q0, full_matrices=False)
-            basis = vt[:3].T  # (4,3)
-            emb = (q_path - mu) @ basis
-            q_unw = np.unwrap(q_path, axis=0)
-            emb_unw = (q_unw - mu) @ basis
-            q_init_unw = np.unwrap(q_init, axis=0)
-            emb_init = (q_init_unw - mu) @ basis
-            emb_s = emb_unw[0:1]
-            emb_g = emb_unw[-1:]
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-                ax1.plot(emb_init[:, 0], emb_init[:, 1], emb_init[:, 2], "--", color="gray", lw=1.1, alpha=0.85, label="init (pre-proj)")
-            ax1.plot(emb_unw[:, 0], emb_unw[:, 1], emb_unw[:, 2], "-", color="#0ea5e9", lw=1.2, alpha=0.85, label="planned")
-            ax1.scatter([emb_s[0, 0]], [emb_s[0, 1]], [emb_s[0, 2]], c="blue", s=20)
-            ax1.scatter([emb_g[0, 0]], [emb_g[0, 1]], [emb_g[0, 2]], c="red", s=20)
-            ax1.set_xlabel("pc1")
-            ax1.set_ylabel("pc2")
-            ax1.set_zlabel("pc3")
-            ax1.set_title(f"Joint Path #{row+1} (4D path in PCA-3D)", fontsize=10)
-
-        if not is_spatial:
-            ax2 = fig.add_subplot(3, 2, right_idx)
-            ax2.plot(ee[:, 0], ee[:, 1], "-", color="green", lw=1.6, label="ee trail")
-            step = max(1, len(joints) // 12)
-            idx_list = list(range(0, len(joints), step))
-            if idx_list[-1] != len(joints) - 1:
-                idx_list.append(len(joints) - 1)
-            n_seg = max(1, len(idx_list) - 1)
-            for k, i in enumerate(idx_list):
-                c = 0.88 - 0.70 * (k / n_seg)
-                arm_color = (c, c, c)
-                ax2.plot(joints[i, :, 0], joints[i, :, 1], "-", color=arm_color, alpha=0.95, lw=1.1)
-            ax2.plot(joints[0, :, 0], joints[0, :, 1], "-", color="blue", lw=1.3)
-            ax2.plot(joints[-1, :, 0], joints[-1, :, 1], "-", color="red", lw=1.3)
-            ax2.scatter([ee[0, 0]], [ee[0, 1]], c="blue", s=26, zorder=5)
-            ax2.scatter([ee[-1, 0]], [ee[-1, 1]], c="red", s=26, zorder=5)
-            ax2.axhline(float(y_line), color="orange", linestyle="--", linewidth=1.7, alpha=0.9, label="GT line")
-            reach = float(sum(lengths)) + 0.15
-            ax2.set_xlim(-reach, reach)
-            ax2.set_ylim(-reach, reach)
-            ax2.set_aspect("equal", adjustable="box")
-            ax2.grid(alpha=0.25)
-            ax2.set_xlabel("x")
-            ax2.set_ylabel("y")
-            ax2.set_title(f"Workspace #{row+1}", fontsize=10)
-        else:
-            ax2 = fig.add_subplot(3, 2, right_idx, projection="3d")
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-                ax2.plot(ee_init[:, 0], ee_init[:, 1], ee_init[:, 2], "--", color="gray", lw=1.2, alpha=0.85, label="init ee")
-                ax2.plot(ee[:, 0], ee[:, 1], ee[:, 2], "-", color="green", lw=1.8, label="planned ee")
-            else:
-                ax2.plot(ee[:, 0], ee[:, 1], ee[:, 2], "-", color="green", lw=1.6, label="ee trail")
-                step = max(1, len(joints) // 12)
-                idx_list = list(range(0, len(joints), step))
-                if idx_list[-1] != len(joints) - 1:
-                    idx_list.append(len(joints) - 1)
-                n_seg = max(1, len(idx_list) - 1)
-                for k, i in enumerate(idx_list):
-                    c = 0.88 - 0.70 * (k / n_seg)
-                    arm_color = (c, c, c)
-                    ax2.plot(joints[i, :, 0], joints[i, :, 1], joints[i, :, 2], "-", color=arm_color, alpha=0.95, lw=1.1)
-            # GT plane z=z_plane for plane-constraint datasets.
-            if y_line is not None:
-                xr = np.linspace(np.min(ee[:, 0]) - 0.3, np.max(ee[:, 0]) + 0.3, 12)
-                yr = np.linspace(np.min(ee[:, 1]) - 0.3, np.max(ee[:, 1]) + 0.3, 12)
-                XX, YY = np.meshgrid(xr, yr)
-                ZZ = np.full_like(XX, float(y_line))
-                ax2.plot_surface(XX, YY, ZZ, alpha=0.12, color="orange", linewidth=0, shade=False)
-            ax2.scatter([ee[0, 0]], [ee[0, 1]], [ee[0, 2]], c="blue", s=26)
-            ax2.scatter([ee[-1, 0]], [ee[-1, 1]], [ee[-1, 2]], c="red", s=26)
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py") and joints.shape[1] >= 2:
-                # Visualize true end-effector tool orientation.
-                d = spatial_tool_axis_n6(q_path.astype(np.float32), use_pybullet=use_pybullet_n6)
-                d0 = spatial_tool_axis_n6(q_init.astype(np.float32), use_pybullet=use_pybullet_n6)
-                qstep = max(1, len(ee) // 14)
-                qidx = np.arange(0, len(ee), qstep, dtype=int)
-                if qidx[-1] != len(ee) - 1:
-                    qidx = np.concatenate([qidx, np.array([len(ee) - 1], dtype=int)])
-                scale = 0.22
-                ax2.quiver(
-                    ee_init[qidx, 0], ee_init[qidx, 1], ee_init[qidx, 2],
-                    d0[qidx, 0], d0[qidx, 1], d0[qidx, 2],
-                    length=scale, normalize=True, color="#9ca3af", linewidth=0.8, alpha=0.75
-                )
-                ax2.quiver(
-                    ee[qidx, 0], ee[qidx, 1], ee[qidx, 2],
-                    d[qidx, 0], d[qidx, 1], d[qidx, 2],
-                    length=scale, normalize=True, color="#f59e0b", linewidth=1.0, alpha=0.9
-                )
-            ax2.set_xlabel("x")
-            ax2.set_ylabel("y")
-            ax2.set_zlabel("z")
-            ax2.set_title(f"Workspace 3D #{row+1}", fontsize=10)
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-                ax2.legend(loc="best", fontsize=8)
-
-    fig.suptitle(f"{name}: planning on learned manifold (3 cases)")
-    fig.tight_layout()
-    fig.savefig(out_path, dpi=170)
-    if bool(cfg.show_3d_plot):
-        plt.show()
-    plt.close(fig)
-    print(f"saved: {out_path}")
-    if render_pybullet and name == "6d_spatial_arm_up_n6" and bool(cfg.plan_pybullet_render):
-        _render_ur5_pybullet_trajectories(q_paths_render, cfg)
-
-    # Slow animation of workspace motion.
-    if not bool(cfg.plan_save_gif):
-        return q_paths_render
-    out_gif = out_path.replace(".png", "_anim.gif")
-    if is_spatial:
-        fig2 = plt.figure(figsize=(10.2, 8.4))
-        ax = fig2.add_subplot(111, projection="3d")
-        # Tighter limits around trajectory for better visibility.
-        c = np.mean(ee, axis=0)
-        span = np.max(np.ptp(ee, axis=0))
-        span = float(max(span, 0.35))
-        half = 0.58 * span
-        reach = float(sum(lengths)) + 0.15
-        ax.set_xlim(float(c[0] - half), float(c[0] + half))
-        ax.set_ylim(float(c[1] - half), float(c[1] + half))
-        ax.set_zlim(float(c[2] - half), float(c[2] + half))
-        ax.set_xlabel("x")
-        ax.set_ylabel("y")
-        ax.set_zlabel("z")
-        ax.set_title(f"{name}: workspace motion (animation)")
-        # GT plane z=z_plane for plane-constraint datasets.
-        if y_line is not None:
-            xr = np.linspace(-reach, reach, 12)
-            yr = np.linspace(-reach, reach, 12)
-            XX, YY = np.meshgrid(xr, yr)
-            ZZ = np.full_like(XX, float(y_line))
-            ax.plot_surface(XX, YY, ZZ, alpha=0.10, color="orange", linewidth=0, shade=False)
-        ax.scatter([ee[0, 0]], [ee[0, 1]], [ee[0, 2]], c="blue", s=38)
-        ax.scatter([ee[-1, 0]], [ee[-1, 1]], [ee[-1, 2]], c="red", s=38)
-        arm_line, = ax.plot([], [], [], "-", color="black", lw=2.0, alpha=0.9)
-        trail, = ax.plot([], [], [], "-", color="green", lw=2.0, alpha=0.9)
-        dot, = ax.plot([], [], [], "o", color="green", ms=6)
-        ori_line = None
-        ori = None
-        ori_scale = 0.20
-        if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-            ori = spatial_tool_axis_n6(q_path.astype(np.float32), use_pybullet=use_pybullet_n6)
-            ori_line, = ax.plot([], [], [], "-", color="#f59e0b", lw=2.2, alpha=0.95)
-
-        frame_idx = np.arange(0, len(joints), max(1, int(cfg.plan_anim_stride)), dtype=int)
-        if frame_idx[-1] != len(joints) - 1:
-            frame_idx = np.concatenate([frame_idx, np.array([len(joints) - 1], dtype=int)])
-
-        def _init3():
-            arm_line.set_data([], [])
-            arm_line.set_3d_properties([])
-            trail.set_data([], [])
-            trail.set_3d_properties([])
-            dot.set_data([], [])
-            dot.set_3d_properties([])
-            if ori_line is not None:
-                ori_line.set_data([], [])
-                ori_line.set_3d_properties([])
-                return arm_line, trail, dot, ori_line
-            return arm_line, trail, dot
-
-        def _update3(k):
-            i = int(frame_idx[k])
-            arm_line.set_data(joints[i, :, 0], joints[i, :, 1])
-            arm_line.set_3d_properties(joints[i, :, 2])
-            trail.set_data(ee[: i + 1, 0], ee[: i + 1, 1])
-            trail.set_3d_properties(ee[: i + 1, 2])
-            dot.set_data([ee[i, 0]], [ee[i, 1]])
-            dot.set_3d_properties([ee[i, 2]])
-            if ori_line is not None and ori is not None:
-                p0 = ee[i]
-                p1 = p0 + ori_scale * ori[i]
-                ori_line.set_data([p0[0], p1[0]], [p0[1], p1[1]])
-                ori_line.set_3d_properties([p0[2], p1[2]])
-                return arm_line, trail, dot, ori_line
-            return arm_line, trail, dot
-
-        ani = animation.FuncAnimation(
-            fig2,
-            _update3,
-            init_func=_init3,
-            frames=len(frame_idx),
-            interval=max(1, int(round(1000.0 / max(1, int(cfg.plan_anim_fps))))),
-            blit=False,
-        )
-        try:
-            ani.save(out_gif, writer=animation.PillowWriter(fps=max(1, int(cfg.plan_anim_fps))))
-            print(f"saved: {out_gif}")
-        except Exception as e:
-            print(f"[warn] {name}: failed to save gif: {e}")
-        plt.close(fig2)
-        return q_paths_render
-
-    fig2, ax = plt.subplots(figsize=(6.2, 6.2))
-    reach = float(sum(lengths)) + 0.15
-    ax.set_xlim(-reach, reach)
-    ax.set_ylim(-reach, reach)
-    ax.set_aspect("equal", adjustable="box")
-    ax.grid(alpha=0.25)
-    ax.set_xlabel("x")
-    ax.set_ylabel("y")
-    ax.set_title(f"{name}: workspace motion (animation)")
-    ax.scatter([ee[0, 0]], [ee[0, 1]], c="blue", s=42, label="start ee")
-    ax.scatter([ee[-1, 0]], [ee[-1, 1]], c="red", s=42, label="goal ee")
-    arm_line, = ax.plot([], [], "-", color="black", lw=2.0, alpha=0.9, label="arm")
-    trail, = ax.plot([], [], "-", color="green", lw=2.0, alpha=0.9, label="ee trail")
-    dot, = ax.plot([], [], "o", color="green", ms=6)
-    ax.legend(loc="best", fontsize=8)
-
-    frame_idx = np.arange(0, len(joints), max(1, int(cfg.plan_anim_stride)), dtype=int)
-    if frame_idx[-1] != len(joints) - 1:
-        frame_idx = np.concatenate([frame_idx, np.array([len(joints) - 1], dtype=int)])
-
-    def _init():
-        arm_line.set_data([], [])
-        trail.set_data([], [])
-        dot.set_data([], [])
-        return arm_line, trail, dot
-
-    def _update(k):
-        i = int(frame_idx[k])
-        arm_line.set_data(joints[i, :, 0], joints[i, :, 1])
-        trail.set_data(ee[: i + 1, 0], ee[: i + 1, 1])
-        dot.set_data([ee[i, 0]], [ee[i, 1]])
-        return arm_line, trail, dot
-
-    ani = animation.FuncAnimation(
-        fig2,
-        _update,
-        init_func=_init,
-        frames=len(frame_idx),
-        interval=max(1, int(round(1000.0 / max(1, int(cfg.plan_anim_fps))))),
-        blit=True,
+    return _core_plot_planar_arm_planning(
+        model=model,
+        name=name,
+        x_train=x_train,
+        out_path=out_path,
+        cfg=cfg,
+        render_pybullet=render_pybullet,
     )
-    try:
-        ani.save(out_gif, writer=animation.PillowWriter(fps=max(1, int(cfg.plan_anim_fps))))
-        print(f"saved: {out_gif}")
-    except Exception as e:
-        print(f"[warn] {name}: failed to save gif: {e}")
-    plt.close(fig2)
-    return q_paths_render
-
-
 def _plot_projection_value_distribution(
     model: nn.Module,
     x_train: np.ndarray,
@@ -1074,13 +654,14 @@ def _plot_projection_value_distribution(
     eps_q = float(getattr(cfg, "zero_eps_quantile", ZERO_EPS_QUANTILE_DEFAULT))
     eps_stop = float(np.percentile(np.abs(h_on), eps_q))
 
+    proj_alpha, proj_steps, proj_min_steps = _proj_from_cfg(cfg)
     traj = project_trajectory_numpy(
         model,
         x0,
         device=str(cfg.device),
-        proj_steps=int(cfg.proj_steps),
-        proj_alpha=float(cfg.proj_alpha),
-        proj_min_steps=int(getattr(cfg, "proj_min_steps", 0)),
+        proj_steps=int(proj_steps),
+        proj_alpha=float(proj_alpha),
+        proj_min_steps=int(proj_min_steps),
         f_abs_stop=eps_stop,
     )
     q_end = traj[-1].astype(np.float32)
@@ -1408,7 +989,7 @@ def _render_ur5_pybullet_trajectories(q_paths: list[np.ndarray], cfg: Any) -> No
         q = _apply_cylinder_extra_rotation(q)
         return center, q
 
-    dt = float(max(cfg.plan_pybullet_real_time_dt, 0.01))
+    dt = float(max(float(_pln(cfg, "pybullet_real_time_dt", 0.06)), 0.01))
     try:
         # Initialize to first frame before enabling rendering to avoid the startup "disconnected" flash.
         q0 = q_paths[0][0]

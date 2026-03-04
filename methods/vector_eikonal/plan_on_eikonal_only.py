@@ -9,13 +9,13 @@ import torch
 from methods.vector_eikonal.vector_eikonal import (
     DEFAULT_DATASETS,
     DEFAULT_OUTDIR,
-    MLPConstraint,
+    MLP,
     _choose_device,
     _enable_interactive_backend_if_possible,
-    _plot_planar_arm_planning,
     _resolve_dataset,
     build_cfg,
 )
+from core.planner import _plot_planar_arm_planning
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -24,28 +24,28 @@ _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 # Edit here to tune planning without touching training script.
 # ----------------------------------------------------------------------
 PLANNER_OVERRIDES = {
-    # core planner optimization
-    "plan_opt_steps": 1500,
-    "plan_opt_lr": 0.005,
-    "plan_opt_lam_smooth": 0.1,
-    "plan_trust_scale": 1,
-    "plan_lam_manifold": 1.0,
-    "plan_lam_len_joint": 2.0,
-    # initialization and pair sampling
-    "plan_init_mode": "joint_spline",  # "joint_spline" | "workspace_ik"
-    "plan_joint_mid_noise": 0.0,
-    "plan_pair_min_ratio": 0.15,
-    "plan_pair_max_ratio": 0.35,
-    "plan_pair_tries": 1200,
-    # projection and visualization controls used during planning plot
-    "proj_alpha": 0.3,
-    "proj_steps": 120,
+    # planner optimization and sampling (planner sub-config)
+    "planner": {
+        "opt_steps": 1500,
+        "opt_lr": 0.005,
+        "opt_lam_smooth": 0.1,
+        "trust_scale": 1.0,
+        "lam_manifold": 1.0,
+        "lam_len_joint": 2.0,
+        "init_mode": "joint_spline",  # "joint_spline" | "workspace_ik"
+        "joint_mid_noise": 0.0,
+        "pair_min_ratio": 0.15,
+        "pair_max_ratio": 0.35,
+        "pair_tries": 1200,
+        "save_gif": True,
+        "anim_fps": 6,
+        "anim_stride": 1,
+        "pybullet_render": True,
+        "pybullet_real_time_dt": 0.06
+    },
+    # projection controls used during planning plot
+    "projector": {"alpha": 0.3, "steps": 120, "min_steps": 30},
     # "zero_eps_quantile": 95.0,
-    "plan_save_gif": True,
-    "plan_anim_fps": 6,
-    "plan_anim_stride": 1,
-    "plan_pybullet_render": True,
-    "plan_pybullet_real_time_dt": 0.06,
 }
 
 # Optional dataset-specific planner override examples:
@@ -56,10 +56,30 @@ DATASET_PLANNER_OVERRIDES = {
 
 def apply_planner_overrides(cfg, dataset_name: str) -> None:
     for k, v in PLANNER_OVERRIDES.items():
+        if k == "planner" and hasattr(cfg, "planner") and isinstance(getattr(cfg, "planner"), dict):
+            cur = dict(getattr(cfg, "planner"))
+            cur.update(dict(v))
+            setattr(cfg, "planner", cur)
+            continue
+        if k == "projector" and hasattr(cfg, "projector") and isinstance(getattr(cfg, "projector"), dict):
+            cur = dict(getattr(cfg, "projector"))
+            cur.update(dict(v))
+            setattr(cfg, "projector", cur)
+            continue
         if hasattr(cfg, k):
             setattr(cfg, k, v)
     ds_ov = DATASET_PLANNER_OVERRIDES.get(dataset_name, {})
     for k, v in ds_ov.items():
+        if k == "planner" and hasattr(cfg, "planner") and isinstance(getattr(cfg, "planner"), dict):
+            cur = dict(getattr(cfg, "planner"))
+            cur.update(dict(v))
+            setattr(cfg, "planner", cur)
+            continue
+        if k == "projector" and hasattr(cfg, "projector") and isinstance(getattr(cfg, "projector"), dict):
+            cur = dict(getattr(cfg, "projector"))
+            cur.update(dict(v))
+            setattr(cfg, "projector", cur)
+            continue
         if hasattr(cfg, k):
             setattr(cfg, k, v)
 
@@ -73,11 +93,12 @@ def run_planning_only(name: str) -> None:
         if not ok:
             print("[warn] interactive matplotlib backend unavailable; disable show_3d_plot")
             cfg.show_3d_plot = False
+    pln = dict(getattr(cfg, "planner", {})) if isinstance(getattr(cfg, "planner", {}), dict) else {}
     print(
         "[plan_cfg] "
-        f"steps={cfg.plan_opt_steps}, lr={cfg.plan_opt_lr}, smooth={cfg.plan_opt_lam_smooth}, "
-        f"lam_man={cfg.plan_lam_manifold}, lam_len={cfg.plan_lam_len_joint}, trust_scale={cfg.plan_trust_scale}, "
-        f"init={cfg.plan_init_mode}"
+        f"steps={pln.get('opt_steps')}, lr={pln.get('opt_lr')}, smooth={pln.get('opt_lam_smooth')}, "
+        f"lam_man={pln.get('lam_manifold')}, lam_len={pln.get('lam_len_joint')}, trust_scale={pln.get('trust_scale')}, "
+        f"init={pln.get('init_mode')}"
     )
 
     outdir = DEFAULT_OUTDIR if os.path.isabs(DEFAULT_OUTDIR) else os.path.join(_PROJECT_ROOT, DEFAULT_OUTDIR)
@@ -90,7 +111,7 @@ def run_planning_only(name: str) -> None:
     constraint_dim = int(ckpt["constraint_dim"])
     hidden = int(ckpt["hidden"])
     depth = int(ckpt["depth"])
-    model = MLPConstraint(in_dim=in_dim, hidden=hidden, depth=depth, out_dim=constraint_dim).to(cfg.device)
+    model = MLP(in_dim=in_dim, hidden=hidden, depth=depth, out_dim=constraint_dim).to(cfg.device)
     model.load_state_dict(ckpt["model_state"])
     model.eval()
 
@@ -107,7 +128,7 @@ def run_planning_only(name: str) -> None:
         x_train,
         out_plan,
         cfg,
-        render_pybullet=bool(cfg.plan_pybullet_render),
+        render_pybullet=bool(pln.get("pybullet_render", False)),
     )
     print(f"saved: {out_plan}")
 

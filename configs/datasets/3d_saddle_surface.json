@@ -1,4 +1,6 @@
 {
   "n_train": 512,
-  "n_grid": 4096
+  "n_grid": 4096,
+  "off_bank_size": 16,
+  "off_bank_oversample": 6
 }

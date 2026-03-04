@@ -1,8 +1,18 @@
 {
+  "seed": 2116,
   "device": "auto",
+
+
+  "constraint_dim": "auto",
   "hidden": 128,
   "depth": 3,
+
+  "n_train": 512,
+  "n_grid": 4096,
+
   "lr": 0.0002,
+  "lr_decay_step": 1000,
+  "lr_decay_gamma": 0.5,
   "epochs": 1200,
   "batch_size": 128,
   "lam_eikonal": 0.25,
@@ -11,15 +21,48 @@
   "eikonal_near_std_ratio": 0.05,
   "train_sample_pad_ratio": 0.6,
   "train_min_axis_span_ratio": 0.08,
-  "constraint_dim": "auto",
+  "metric_eval_every": 1,
+  "train_log_every": 50,
+
   "codim_auto_sample_ratio": 0.2,
   "codim_auto_k_neighbors": 5,
   "codim_auto_const_axis_std_ratio": 0.001,
   "codim_auto_strict_check": true,
+
   "projector": {
     "alpha": 0.3,
     "steps": 80,
     "min_steps": 20
   },
-  "train_log_every": 50
+
+  "planner": {
+    "enable": false,
+    "pair_min_ratio": 0.15,
+    "pair_max_ratio": 0.35,
+    "pair_tries": 1200,
+    "init_mode": "joint_spline",
+    "joint_mid_noise": 0.0,
+    "lam_manifold": 1.0,
+    "lam_len_joint": 0.4,
+    "opt_steps": 1240,
+    "opt_lr": 0.01,
+    "opt_lam_smooth": 0.2,
+    "trust_scale": 0.8,
+    "method": "traj_opt",
+    "anim_fps": 6,
+    "anim_stride": 1,
+    "save_gif": false,
+    "pybullet_render": false,
+    "pybullet_real_time_dt": 0.06
+  },
+
+  "show_3d_plot": true,
+  "surface_plot_n": 28,
+  "surface_eval_chunk": 8192,
+  "surface_max_points": 5000,
+  "plot_train_max_points": 1200,
+  "plot_traj_max_count": 24,
+  "plot_traj_stride": 2,
+  "viz_proj_traj_count": 64,
+  "surface_use_marching_cubes": true
 }

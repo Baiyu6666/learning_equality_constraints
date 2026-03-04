@@ -1,17 +1,48 @@
 {
   "seed": 36,
   "device": "auto",
-  "n_grid": 4096,
+  "n_train": 512,
+
   "latent_dim": -1,
-  "hidden_dims": [64, 32],
-  "epochs": 500,
+  "hidden_dims": [128, 128, 128],
+
+  "n_grid": 4096,
+
+  "epochs": 800,
   "batch_size": 128,
   "lr": 0.001,
   "weight_decay": 0.0,
-  "beta_final": 0.05,
-  "warmup_epochs": 440,
-  "ur5_backend": "analytic",
+  "beta_final": 0.01,
+  "warmup_epochs": 500,
+  "ur5_backend": "auto",
+
   "viz_enable": true,
   "viz_sample_latent_n": 150,
-  "viz_max_eval_points": 2000
+  "viz_max_eval_points": 2000,
+  "projector": {
+    "alpha": 0.3,
+    "steps": 80,
+    "min_steps": 20
+  },
+
+  "planner": {
+    "enable": false,
+    "method": "linear_proj",
+    "opt_steps": 1240,
+    "opt_lr": 0.01,
+    "opt_lam_smooth": 0.2,
+    "lam_manifold": 1.0,
+    "lam_len_joint": 0.4,
+    "trust_scale": 0.8,
+    "pair_min_ratio": 0.15,
+    "pair_max_ratio": 0.35,
+    "pair_tries": 1200,
+    "init_mode": "joint_spline",
+    "joint_mid_noise": 0.0,
+    "anim_fps": 6,
+    "anim_stride": 1,
+    "save_gif": false,
+    "pybullet_render": false,
+    "pybullet_real_time_dt": 0.06
+  }
 }

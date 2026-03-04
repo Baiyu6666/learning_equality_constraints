@@ -11,7 +11,7 @@ def is_arm_dataset(name: str) -> bool:
 
 
 def is_workspace_pose_dataset(name: str) -> bool:
-    return str(name) == "6d_workspace_sine_surface_pose"
+    return str(name) in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj")
 
 
 def wrap_np_pi(x: np.ndarray) -> np.ndarray:
