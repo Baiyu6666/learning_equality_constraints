@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from dataclasses import asdict, dataclass, field
 from types import SimpleNamespace
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from torch import nn
@@ -35,6 +37,9 @@ from core.kinematics import (
 from methods.baseline_udf import baseline_udf as udf
 from methods.baseline_vae import baseline_vae as vae_base
 from methods.baseline_vae import plots as vae_plots
+from methods.ecomann import ecomann as ecomann_base
+from methods.ecomann.plots import save_training_diagnostics_2d as save_ecomann_training_diagnostics_2d
+from methods.ecomann.plots import save_loss_curves as save_ecomann_loss_curves
 from methods.vector_eikonal import vector_eikonal as ve
 from methods.baseline_udf.plots import (
     plot_knn_normals,
@@ -45,6 +50,7 @@ from common.plot_common import plot_contour_traj_2d
 from common.plot_common import plot_planned_paths_3d
 from methods.vector_eikonal.plots import (
     _plot_constraint_2d,
+    _plot_training_diagnostics,
     _plot_zero_surfaces_3d,
     _plot_ur5_eval_projection_workspace_orientation_3d,
     _plot_ur5_projection_error_distribution_from_pairs,
@@ -55,7 +61,7 @@ from evaluator.evaluator import eval_bounds_from_train, resolve_gt_grid
 
 from common.config_loader import apply_overrides, load_layered_config
 
-VALID_METHODS = {"eikonal", "margin", "delta", "vae"}
+VALID_METHODS = {"eikonal", "margin", "delta", "vae", "ecomann"}
 
 
 @dataclass
@@ -178,18 +184,109 @@ def _worst_case_traj_2d(
             f_abs_stop=eps_used,
         )
     return worst_traj, x0_worst
-    print(
-        f"[eval] {dataset} | proj_steps={float(metrics.get('proj_steps', float('nan'))):.2f} "
-        f"| proj_true_dist={float(metrics.get('proj_true_dist', float('nan'))):.6f} "
-        f"| proj_v_residual={float(metrics.get('proj_v_residual', float('nan'))):.6f} "
-        f"| eval_eps={float(metrics.get('eval_eps_used', float('nan'))):.6f} "
-        f"| pred_precision={float(metrics.get('pred_precision', float('nan'))):.6f}"
-    )
-    if "gen_manifold_dist" in metrics or "gen_chamfer" in metrics:
-        print(
-            f"[eval] {dataset} | gen_manifold_dist={float(metrics.get('gen_manifold_dist', float('nan'))):.6f} "
-            f"| gen_chamfer={float(metrics.get('gen_chamfer', float('nan'))):.6f}"
+
+
+def _worst_case_traj_3d(
+    *,
+    dataset: str,
+    model: nn.Module,
+    x_train: np.ndarray,
+    cfg_for_project: Any,
+    cfg_for_grid: Any,
+    eval_artifacts: dict[str, Any],
+    project_traj_fn: Any = None,
+) -> tuple[np.ndarray | None, np.ndarray | None]:
+    x_eval = np.asarray(eval_artifacts.get("x_eval", np.zeros((0, 3), dtype=np.float32)), dtype=np.float32)
+    proj = np.asarray(eval_artifacts.get("proj", np.zeros((0, 3), dtype=np.float32)), dtype=np.float32)
+    if x_eval.ndim != 2 or proj.ndim != 2 or x_eval.shape[1] != 3 or proj.shape[1] != 3:
+        return None, None
+    n = int(min(len(x_eval), len(proj)))
+    if n <= 0:
+        return None, None
+    x_eval = x_eval[:n]
+    proj = proj[:n]
+    finite = np.isfinite(x_eval).all(axis=1) & np.isfinite(proj).all(axis=1)
+    if not np.any(finite):
+        return None, None
+    x_eval = x_eval[finite]
+    proj = proj[finite]
+
+    gt_grid = resolve_gt_grid(str(dataset), cfg_for_grid, x_train=x_train).astype(np.float32)
+    if gt_grid.ndim != 2 or gt_grid.shape[1] != 3 or len(gt_grid) == 0:
+        return None, None
+
+    if _is_arm_dataset(dataset) or _is_workspace_pose_dataset(dataset):
+        use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+        gt_metric = _workspace_embed_for_eval(str(dataset), gt_grid, ur5_use_pybullet_n6=use_pybullet_n6)
+        proj_metric = _workspace_embed_for_eval(str(dataset), proj, ur5_use_pybullet_n6=use_pybullet_n6)
+    else:
+        gt_metric = gt_grid
+        proj_metric = proj
+
+    d_final = _nn_dist_numpy(proj_metric, gt_metric)
+    if len(d_final) == 0 or not np.isfinite(d_final).any():
+        return None, None
+    n_worst = int(min(24, max(1, np.ceil(0.05 * len(d_final)))))
+    idx = np.argsort(d_final)[-n_worst:]
+    x0_worst = x_eval[idx].astype(np.float32, copy=False)
+
+    eps_used = float(eval_artifacts.get("eval_eps_used", 0.0))
+    if not np.isfinite(eps_used) or eps_used <= 0.0:
+        eps_used = 1e-6
+    if callable(project_traj_fn):
+        worst_traj = project_traj_fn(x0_worst.astype(np.float32))
+    else:
+        proj_cfg = getattr(cfg_for_project, "projector", {}) or {}
+        worst_traj = project_trajectory_numpy(
+            model,
+            x0_worst,
+            device=str(getattr(cfg_for_project, "device", "cpu")),
+            proj_steps=int(proj_cfg.get("steps", 80)),
+            proj_alpha=float(proj_cfg.get("alpha", 0.3)),
+            proj_min_steps=int(proj_cfg.get("min_steps", 0)),
+            f_abs_stop=eps_used,
         )
+    return worst_traj, x0_worst
+
+
+def _plot_worst_projection_3d(
+    *,
+    x_train: np.ndarray,
+    worst_traj: np.ndarray,
+    worst_x0: np.ndarray,
+    out_path: str,
+    title: str,
+    axis_labels: tuple[str, str, str],
+) -> None:
+    if worst_traj is None or worst_x0 is None or len(worst_traj) == 0 or len(worst_x0) == 0:
+        return
+    train_plot = x_train
+    if len(train_plot) > 2000:
+        rng = np.random.default_rng(0)
+        idx = rng.choice(len(train_plot), size=2000, replace=False)
+        train_plot = train_plot[idx]
+
+    fig = plt.figure(figsize=(8.2, 7.0))
+    ax = fig.add_subplot(111, projection="3d")
+    ax.scatter(train_plot[:, 0], train_plot[:, 1], train_plot[:, 2], s=5, c="gray", alpha=0.18, label="train")
+    for i in range(worst_traj.shape[1]):
+        ax.plot(
+            worst_traj[:, i, 0], worst_traj[:, i, 1], worst_traj[:, i, 2],
+            "-", color="red", linewidth=1.0, alpha=0.9,
+            label="worst traj (top 5%)" if i == 0 else None,
+        )
+    ax.scatter(
+        worst_x0[:, 0], worst_x0[:, 1], worst_x0[:, 2],
+        s=16, c="royalblue", alpha=0.95, label="worst starts",
+    )
+    ax.set_xlabel(axis_labels[0])
+    ax.set_ylabel(axis_labels[1])
+    ax.set_zlabel(axis_labels[2])
+    ax.set_title(title)
+    ax.legend(loc="upper left", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=180)
+    plt.close(fig)
 
 
 def _normalize_metrics(metrics: dict[str, Any]) -> dict[str, float]:
@@ -289,6 +386,24 @@ def _save_common_method_plots(
             axis_labels=(labels[0], labels[1], labels[2]),
             cfg=vis_cfg,
             intersection_points=eval_artifacts.get("proj", None),
+        )
+        worst_traj_3d, worst_x0_3d = _worst_case_traj_3d(
+            dataset=str(dataset),
+            model=model,
+            x_train=x_train,
+            cfg_for_project=vis_cfg,
+            cfg_for_grid=vis_cfg,
+            eval_artifacts=eval_artifacts,
+            project_traj_fn=project_traj_fn,
+        )
+        out_worst = os.path.join(outdir, f"{dataset}_{method_tag}_worst_projection_3d.png")
+        _plot_worst_projection_3d(
+            x_train=x_train,
+            worst_traj=worst_traj_3d,
+            worst_x0=worst_x0_3d,
+            out_path=out_worst,
+            title=f"{dataset}: {method_tag} worst-case projection trajectories",
+            axis_labels=(labels[0], labels[1], labels[2]),
         )
 
 
@@ -611,6 +726,7 @@ def run_eikonal_one(
     x_train = ds["x_train"]
     data_dim = int(ds.get("data_dim", int(x_train.shape[1])))
     true_codim = int(ds.get("true_codim", 1))
+    train_t0 = time.perf_counter()
 
     if str(cfg.constraint_dim).lower() == "auto":
         try:
@@ -644,6 +760,8 @@ def run_eikonal_one(
             codim = 1
 
     model, train_hist = ve.train_on_eikonal_only(cfg, x_train, constraint_dim=codim)
+    learned_codim = int(np.asarray(train_hist.get("learned_codim", np.asarray([codim]))).reshape(-1)[0])
+    train_seconds = float(time.perf_counter() - train_t0)
 
     if _is_arm_dataset(dataset):
         post_fn = _wrap_np_pi
@@ -681,6 +799,7 @@ def run_eikonal_one(
         embed_fn=embed_fn,
         postprocess_fn=post_fn,
     )
+    metrics["train_seconds"] = float(train_seconds)
     _print_eval_lines(dataset, metrics)
 
     vis_cfg = _make_vis_cfg_for_method(dataset, cfg, eval_cfg)
@@ -693,6 +812,8 @@ def run_eikonal_one(
         vis_cfg=vis_cfg,
         eval_artifacts=eval_artifacts,
     )
+    out_diag = os.path.join(outdir, f"{dataset}_on_eikonal_training_diagnostics.png")
+    _plot_training_diagnostics(train_hist, out_diag, title=f"{dataset}: training diagnostics (on-data)")
 
     if int(x_train.shape[1]) == 2:
         if str(dataset) == "2d_planar_arm_line_n2":
@@ -757,7 +878,7 @@ def run_eikonal_one(
                     zero_level_eps=eps_used,
                 )
 
-    if str(dataset) in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if str(dataset) in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
         out_plan = os.path.join(outdir, f"{dataset}_on_eikonal_planning_demo.png")
         _plot_planar_arm_planning(
             model,
@@ -843,7 +964,7 @@ def run_eikonal_one(
             "method": "eikonal",
             "model_state": model.state_dict(),
             "in_dim": int(x_train.shape[1]),
-            "constraint_dim": int(codim),
+            "constraint_dim": int(learned_codim),
             "hidden": int(cfg.hidden),
             "depth": int(cfg.depth),
             "x_train": x_train.astype(np.float32),
@@ -859,7 +980,7 @@ def run_eikonal_one(
         "metrics": _normalize_metrics(metrics),
         "eval_path": eval_path,
         "ckpt_path": ckpt_path,
-        "config": asdict(cfg),
+        "config": {**asdict(cfg), "constraint_dim": int(learned_codim)},
     }
 
 
@@ -894,10 +1015,12 @@ def run_udf_one(
     )
     x_train = ds["x_train"]
     true_codim = int(ds.get("true_codim", 1))
+    train_t0 = time.perf_counter()
 
     knn_k = udf.effective_knn_norm_estimation_points(cfg, len(x_train))
     n_basis = udf.knn_normal_bases(x_train, knn_k, true_codim, cfg)
     model, train_stats, train_history, train_artifacts = udf.train_baseline(cfg, mode=method, x=x_train, n_basis=n_basis)
+    train_seconds = float(time.perf_counter() - train_t0)
 
     if _is_arm_dataset(dataset):
         post_fn = _wrap_np_pi
@@ -925,6 +1048,7 @@ def run_udf_one(
         embed_fn=embed_fn,
         postprocess_fn=post_fn,
     )
+    metrics["train_seconds"] = float(train_seconds)
     _print_eval_lines(dataset, metrics)
 
     outdir = os.path.join(out_root, method)
@@ -1022,6 +1146,200 @@ def run_udf_one(
     }
 
 
+def run_ecomann_one(
+    dataset: str,
+    *,
+    out_root: str,
+    seed_override: int | None,
+    cfg_mapping: dict[str, Any],
+) -> dict[str, Any]:
+    cfg = _build_cfg_from_mapping_strict(ecomann_base.Config, cfg_mapping)
+    _apply_projector_subcfg(cfg)
+    _apply_planner_subcfg(cfg)
+
+    if seed_override is not None:
+        cfg.seed = int(seed_override)
+    cfg.device = ecomann_base._choose_device(str(cfg.device))
+    if cfg.device == "cuda":
+        torch.backends.cudnn.benchmark = True
+        torch.set_float32_matmul_precision("high")
+
+    set_seed(int(cfg.seed))
+    ds = resolve_dataset(
+        dataset,
+        cfg,
+        optimize_ur5_train_only=True,
+        ur5_backend=("pybullet" if str(dataset) == "6d_spatial_arm_up_n6" else "analytic"),
+    )
+    x_train = ds["x_train"]
+    true_codim = int(ds.get("true_codim", 1))
+    train_t0 = time.perf_counter()
+    model, train_hist, learned_codim, loader_data = ecomann_base.train_ecomann(
+        cfg,
+        x_train,
+        force_codim=true_codim,
+        return_loader_data=True,
+    )
+    train_seconds = float(time.perf_counter() - train_t0)
+
+    if _is_arm_dataset(dataset):
+        post_fn = _wrap_np_pi
+    elif _is_workspace_pose_dataset(dataset):
+        post_fn = _wrap_workspace_pose_rpy_np
+    else:
+        post_fn = None
+    use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+    embed_fn = (
+        lambda q, _name=dataset: _workspace_embed_for_eval(
+            _name,
+            q,
+            ur5_use_pybullet_n6=use_pybullet_n6,
+        )
+    ) if (_is_arm_dataset(dataset) or _is_workspace_pose_dataset(dataset)) else None
+
+    def project_fn(_model: nn.Module, x0: np.ndarray, _eps_stop: float) -> tuple[np.ndarray, np.ndarray]:
+        # EcoMaNN projector: match upstream stopping rules in
+        # smp_manifold_learning.motion_planner.feature.Projection
+        # (tol/max_iter/step_size and divergence guard).
+        # Add aggressive dq clipping to prevent rare Newton blow-ups.
+        p_cfg = getattr(cfg, "projector", {}) or {}
+        tol = float(p_cfg.get("tol", 1e-5))
+        max_iter = int(p_cfg.get("max_iter", 200))
+        step_size = float(p_cfg.get("step_size", 1.0))
+        diverge_ratio = float(p_cfg.get("diverge_ratio", 2.0))
+        max_dq_norm = float(p_cfg.get("max_dq_norm", 1.0))
+
+        x_in = np.asarray(x0, dtype=np.float32)
+        x_out = np.asarray(x_in, dtype=np.float32).copy()
+        steps = np.zeros((len(x_out),), dtype=np.float32)
+
+        for i in range(len(x_out)):
+            q = x_out[i].astype(np.float64, copy=True)
+            y = np.asarray(_model.y(q), dtype=np.float64).reshape(-1)
+            y_norm = float(np.linalg.norm(y))
+            y0 = float(diverge_ratio * y_norm)
+            it = 0
+            while (y_norm > tol) and (it < max_iter) and (y_norm < y0):
+                try:
+                    J = np.asarray(_model.J(q), dtype=np.float64)
+                    dq = np.linalg.lstsq(J, y, rcond=None)[0]
+                    if np.isfinite(max_dq_norm) and max_dq_norm > 0.0:
+                        dq_norm = float(np.linalg.norm(dq))
+                        if np.isfinite(dq_norm) and dq_norm > max_dq_norm:
+                            dq = dq * (max_dq_norm / max(dq_norm, 1e-12))
+                except Exception:
+                    break
+                q = q - (step_size * dq)
+                y = np.asarray(_model.y(q), dtype=np.float64).reshape(-1)
+                y_norm = float(np.linalg.norm(y))
+                it += 1
+            x_out[i] = q.astype(np.float32)
+            steps[i] = float(it)
+        return x_out.astype(np.float32), steps.astype(np.float32)
+
+    metrics, eval_cfg, eval_artifacts = run_eval_metrics(
+        cfg=cfg,
+        method_key="ecomann",
+        dataset_name=dataset,
+        model=model,
+        x_train=x_train,
+        project_fn=project_fn,
+        embed_fn=embed_fn,
+        postprocess_fn=post_fn,
+    )
+    metrics["train_seconds"] = float(train_seconds)
+    _print_eval_lines(dataset, metrics)
+
+    outdir = os.path.join(out_root, "ecomann")
+    os.makedirs(outdir, exist_ok=True)
+    vis_cfg = _make_vis_cfg_for_method(dataset, cfg, eval_cfg)
+    _save_common_method_plots(
+        dataset=dataset,
+        method_tag="ecomann",
+        model=model,
+        x_train=x_train,
+        outdir=outdir,
+        vis_cfg=vis_cfg,
+        eval_artifacts=eval_artifacts,
+    )
+    extra_plots = save_ecomann_training_diagnostics_2d(
+        dataset=dataset,
+        outdir=outdir,
+        x_train=x_train,
+        loader_data=loader_data,
+        cfg=cfg,
+    )
+    for p in extra_plots:
+        print(f"[saved] {p}")
+    out_loss = save_ecomann_loss_curves(
+        dataset=dataset,
+        outdir=outdir,
+        train_hist=train_hist,
+    )
+    if out_loss is not None:
+        print(f"[saved] {out_loss}")
+    if dataset in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        out_dist = os.path.join(outdir, f"{dataset}_ecomann_proj_value_distribution.png")
+        _plot_ur5_projection_error_distribution_from_pairs(
+            q_eval=eval_artifacts.get("x_eval", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            out_path=out_dist,
+            title=f"{dataset} (ecomann): orientation-angle error before/after projection",
+            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+        )
+        out_ws = os.path.join(outdir, f"{dataset}_ecomann_eval_proj_workspace_orientation.png")
+        _plot_ur5_eval_projection_workspace_orientation_3d(
+            q_train=x_train,
+            q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            out_path=out_ws,
+            title=f"{dataset} (ecomann): eval projected points in workspace + tool orientation",
+            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+        )
+    if dataset in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
+        out_pose = os.path.join(outdir, f"{dataset}_ecomann_workspace_pose_orientation.png")
+        _plot_workspace_pose_orientation_3d(
+            x_train=x_train,
+            eval_proj=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
+            out_path=out_pose,
+            title=f"{dataset} (ecomann): projected eval poses + orientation z-axis",
+        )
+        out_err = os.path.join(outdir, f"{dataset}_ecomann_workspace_pose_proj_error_distributions.png")
+        _plot_workspace_pose_projection_error_distributions(
+            x_before=eval_artifacts.get("x_eval", np.zeros((0, 6), dtype=np.float32)),
+            x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
+            out_path=out_err,
+            title=f"{dataset} (ecomann): projection errors before/after",
+        )
+
+    eval_path = os.path.join(outdir, f"{dataset}_ecomann_eval.json")
+    ckpt_path = os.path.join(outdir, f"{dataset}_ecomann_model.pt")
+    with open(eval_path, "w", encoding="utf-8") as f:
+        json.dump(metrics, f, indent=2, ensure_ascii=False)
+    torch.save(
+        {
+            "dataset": str(dataset),
+            "method": "ecomann",
+            "model_state": model.state_dict(),
+            "in_dim": int(x_train.shape[1]),
+            "constraint_dim": int(learned_codim),
+            "hidden_sizes": [int(v) for v in cfg.hidden_sizes],
+            "x_train": x_train.astype(np.float32),
+            "train_hist": train_hist,
+            "cfg": asdict(cfg),
+        },
+        ckpt_path,
+    )
+
+    return {
+        "method": "ecomann",
+        "dataset": dataset,
+        "metrics": _normalize_metrics(metrics),
+        "eval_path": eval_path,
+        "ckpt_path": ckpt_path,
+        "config": asdict(cfg),
+    }
+
+
 def run_one(
     method: str,
     dataset: str,
@@ -1043,6 +1361,13 @@ def run_one(
 
     if method == "eikonal":
         result = run_eikonal_one(
+            dataset,
+            out_root=out_root,
+            seed_override=seed_override,
+            cfg_mapping=cfg_mapping,
+        )
+    elif method == "ecomann":
+        result = run_ecomann_one(
             dataset,
             out_root=out_root,
             seed_override=seed_override,
@@ -1112,6 +1437,7 @@ def run_vae_one(
     true_codim = int(ds.get("true_codim", 1))
     latent_dim = _resolve_vae_latent_dim(cfg, data_dim, true_codim)
     hidden = tuple(int(v) for v in cfg.hidden_dims)
+    train_t0 = time.perf_counter()
 
     vae_model = VariationalAutoEncoder(in_dim=data_dim, latent_dim=latent_dim, hidden=hidden).to(cfg.device)
     train_cfg = vae_base.TrainConfig(
@@ -1127,6 +1453,7 @@ def run_vae_one(
     train_history = vae_base.train_variational_autoencoder(
         vae_model, x_train_t, train_cfg, torch.device(cfg.device)
     )
+    train_seconds = float(time.perf_counter() - train_t0)
 
     field_model = vae_base.VAEProjectorField(vae_model).to(cfg.device)
     field_model.eval()
@@ -1171,6 +1498,7 @@ def run_vae_one(
         embed_fn=embed_fn,
         postprocess_fn=post_fn,
     )
+    metrics["train_seconds"] = float(train_seconds)
 
     # Extra VAE generative metrics on prior samples z~N(0,1):
     # - gen_manifold_dist: mean NN distance from generated points to GT manifold
@@ -1267,18 +1595,16 @@ def run_vae_one(
     print(f"saved: {out_loss}")
 
     vis_cfg = _make_vis_cfg_for_method(dataset, cfg, eval_cfg)
-    # For VAE in 3D, "zero_surfaces_3d" is not an informative view.
-    if int(x_train.shape[1]) != 3:
-        _save_common_method_plots(
-            dataset=dataset,
-            method_tag="vae",
-            model=field_model,
-            x_train=x_train,
-            outdir=outdir,
-            vis_cfg=vis_cfg,
-            eval_artifacts=eval_artifacts,
-            project_traj_fn=_vae_project_traj_np,
-        )
+    _save_common_method_plots(
+        dataset=dataset,
+        method_tag="vae",
+        model=field_model,
+        x_train=x_train,
+        outdir=outdir,
+        vis_cfg=vis_cfg,
+        eval_artifacts=eval_artifacts,
+        project_traj_fn=_vae_project_traj_np,
+    )
     if int(x_train.shape[1]) == 2:
         if str(dataset) == "2d_planar_arm_line_n2":
             out_plan = os.path.join(outdir, f"{dataset}_vae_planning_demo.png")

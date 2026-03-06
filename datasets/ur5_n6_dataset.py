@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import numpy as np
+import xml.etree.ElementTree as ET
 
 from datasets.ur5_pybullet_utils import (
     UR5_LINK_LENGTHS,
@@ -243,8 +244,47 @@ def sample_ur5_upward_dataset_analytic(n_train: int, n_grid: int, seed: int) -> 
     # Pure-Python sampler: no pybullet, no collision checking.
     # Orientation convention matches demo analytic chain: axes z,y,y,y,x,z; tool axis local +x.
     rng = np.random.default_rng(int(seed))
-    lo = np.array([-np.pi] * 6, dtype=np.float32)
-    hi = np.array([np.pi] * 6, dtype=np.float32)
+
+    def _limits_from_urdf() -> tuple[np.ndarray, np.ndarray] | None:
+        try:
+            kin = resolve_ur5_kinematics_cfg({})
+            urdf_path = str(kin.get("urdf_path", "")).strip()
+            if (not urdf_path) or (not os.path.exists(urdf_path)):
+                return None
+            root = ET.parse(urdf_path).getroot()
+            lo_list: list[float] = []
+            hi_list: list[float] = []
+            for j in root.findall("joint"):
+                j_type = str(j.attrib.get("type", "")).strip().lower()
+                if j_type != "revolute":
+                    continue
+                lim = j.find("limit")
+                if lim is None:
+                    continue
+                try:
+                    lo_j = float(lim.attrib.get("lower", "-3.141592653589793"))
+                    hi_j = float(lim.attrib.get("upper", "3.141592653589793"))
+                except Exception:
+                    continue
+                if (not np.isfinite(lo_j)) or (not np.isfinite(hi_j)) or (hi_j <= lo_j):
+                    continue
+                lo_list.append(lo_j)
+                hi_list.append(hi_j)
+                if len(lo_list) >= 6:
+                    break
+            if len(lo_list) < 6:
+                return None
+            return np.asarray(lo_list[:6], dtype=np.float32), np.asarray(hi_list[:6], dtype=np.float32)
+        except Exception:
+            return None
+
+    import os
+    lim = _limits_from_urdf()
+    if lim is not None:
+        lo, hi = lim
+    else:
+        lo = np.array([-np.pi] * 6, dtype=np.float32)
+        hi = np.array([np.pi] * 6, dtype=np.float32)
 
     def _axis(q: np.ndarray) -> np.ndarray:
         ex = np.array([1.0, 0.0, 0.0], dtype=np.float32)

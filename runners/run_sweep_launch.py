@@ -5,6 +5,10 @@ import argparse
 import os
 from pathlib import Path
 
+_PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# Keep local W&B files under repo-root/wandb regardless of launch cwd.
+os.environ["WANDB_DIR"] = str(_PROJECT_ROOT / "wandb")
+
 try:
     import yaml  # type: ignore
 except Exception:
@@ -18,7 +22,7 @@ except Exception:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Create W&B sweep from yaml and immediately start agent.")
-    p.add_argument("--yaml", default="configs/sweeps/vae_all_6d.yaml", help="path to sweep yaml")
+    p.add_argument("--yaml", default="configs/sweeps/ecomann_6d_workspace", help="path to sweep yaml")
     p.add_argument("--count", type=int, default=None, help="max trial count")
     p.add_argument("--project", default=None, help="override project")
     p.add_argument("--entity", default=None, help="override entity")

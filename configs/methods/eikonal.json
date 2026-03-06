@@ -24,10 +24,21 @@
   "metric_eval_every": 1,
   "train_log_every": 50,
 
-  "codim_auto_sample_ratio": 0.2,
-  "codim_auto_k_neighbors": 5,
+  "codim_auto_sample_ratio": 0.3,
+  "codim_auto_k_neighbors": 8,
   "codim_auto_const_axis_std_ratio": 0.001,
   "codim_auto_strict_check": true,
+
+  "codim_learn_enable": false,
+  "codim_learn_m_max": 5,
+  "codim_learn_stage1_ratio": 0.1,
+  "codim_learn_sparsity_final": 0.00,
+  "codim_learn_gate_lr": 0.01,
+  "codim_learn_gate_threshold": 0.5,
+  "codim_learn_min_active": 1,
+  "codim_learn_min_active_weight": 1.0,
+  "codim_learn_stage1_lam_eikonal": 0.01 ,
+  "codim_learn_finetune_ratio": 0.1,
 
   "projector": {
     "alpha": 0.3,

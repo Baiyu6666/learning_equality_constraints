@@ -129,7 +129,7 @@ def workspace_embed_for_eval(
         return planar_fk(q, [1.0, 0.8])[:, -1, :].astype(np.float32)
     if name == "3d_planar_arm_line_n3":
         return planar_fk(q, [1.0, 0.8, 0.6])[:, -1, :].astype(np.float32)
-    if name in ("3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3"):
+    if name in ("3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
         return spatial_fk_n3(q, [1.0, 0.8])[:, -1, :].astype(np.float32)
     if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
         ee = spatial_fk(q, list(UR5_LINK_LENGTHS), use_pybullet_n6=ur5_use_pybullet_n6)[:, -1, :]

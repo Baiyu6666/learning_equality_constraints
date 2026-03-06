@@ -64,11 +64,14 @@ def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title
     f_abs = hist["f_abs_mean"]
     gnorm = hist["grad_norm_mean"]
     ortho = hist["ortho_err"]
+    gate = hist.get("gate_mean", None)
     k = int(f_abs.shape[1]) if f_abs.ndim == 2 else 1
 
-    plt.figure(figsize=(12, 3.6))
+    show_gate = isinstance(gate, np.ndarray) and gate.ndim == 2 and gate.shape[0] == len(ep)
+    ncols = 4 if show_gate else 3
+    plt.figure(figsize=(4.0 * ncols, 3.6))
 
-    ax1 = plt.subplot(1, 3, 1)
+    ax1 = plt.subplot(1, ncols, 1)
     for i in range(k):
         ax1.plot(ep, f_abs[:, i], lw=1.6, label=f"|f{i+1}| mean")
     ax1.set_xlabel("epoch")
@@ -77,7 +80,7 @@ def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title
     ax1.grid(alpha=0.25)
     ax1.legend(loc="best", fontsize=8)
 
-    ax2 = plt.subplot(1, 3, 2)
+    ax2 = plt.subplot(1, ncols, 2)
     for i in range(k):
         ax2.plot(ep, gnorm[:, i], lw=1.6, label=f"||grad f{i+1}|| mean")
     ax2.axhline(1.0, color="k", lw=1.0, ls="--", alpha=0.6)
@@ -87,12 +90,24 @@ def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title
     ax2.grid(alpha=0.25)
     ax2.legend(loc="best", fontsize=8)
 
-    ax3 = plt.subplot(1, 3, 3)
+    ax3 = plt.subplot(1, ncols, 3)
     ax3.plot(ep, ortho, lw=1.8, color="#ef4444")
     ax3.set_xlabel("epoch")
     ax3.set_ylabel("mean |J J^T - I|")
     ax3.set_title("Orthogonality Error")
     ax3.grid(alpha=0.25)
+
+    if show_gate:
+        kg = int(gate.shape[1])
+        ax4 = plt.subplot(1, ncols, 4)
+        for i in range(kg):
+            ax4.plot(ep, gate[:, i], lw=1.4, label=f"g{i+1}")
+        ax4.set_ylim(-0.02, 1.02)
+        ax4.set_xlabel("epoch")
+        ax4.set_ylabel("gate value")
+        ax4.set_title("Global Gates")
+        ax4.grid(alpha=0.25)
+        ax4.legend(loc="best", fontsize=8, ncol=2 if kg >= 6 else 1)
 
     plt.suptitle(title)
     plt.tight_layout()

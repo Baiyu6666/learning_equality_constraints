@@ -1,0 +1,2 @@
+dataset,method,n,mean,median,std,min,max
+2d_planar_arm_line_n2,eikonal,5,0.63935546875,0.6416015625,0.04905960754809844,0.562744140625,0.697509765625

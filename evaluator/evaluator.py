@@ -28,6 +28,7 @@ EVAL_METHOD_OVERRIDES: dict[str, dict[str, Any]] = {
     "margin": {},
     "delta": {},
     "vae": {},
+    "ecomann": {},
 }
 EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     # Keep explicit keys as templates; defaults are currently identical to DEFAULT_EVAL_CFG.
@@ -46,6 +47,7 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "3d_torus_surface": {},
     "3d_planar_arm_line_n3": {},
     "3d_spatial_arm_plane_n3": {},
+    "3d_spatial_arm_ellip_n3": {},
     "3d_spatial_arm_circle_n3": {},
     "6d_spatial_arm_up_n6": {},
     "6d_spatial_arm_up_n6_py": {},
@@ -145,6 +147,16 @@ def eval_bounds_from_train(x_train: np.ndarray, cfg: Any) -> tuple[np.ndarray, n
     center = 0.5 * (mins + maxs)
     half = 0.5 * span * scale
     return center - half, center + half
+
+
+def _clip_points_to_eval_bounds(x: np.ndarray, x_train: np.ndarray, cfg: Any) -> np.ndarray:
+    """Evaluation-only safety clip to the padded train-domain bounds."""
+    mins, maxs = eval_bounds_from_train(x_train, cfg)
+    return np.clip(
+        x.astype(np.float32),
+        mins.reshape(1, -1).astype(np.float32),
+        maxs.reshape(1, -1).astype(np.float32),
+    ).astype(np.float32)
 
 
 def sample_eval_seed_points(
@@ -284,12 +296,21 @@ def evaluate_bidirectional_chamfer(
 
     eps_stop = float(eps_stop_override) if eps_stop_override is not None else float(compute_eps_stop(model, x_train, cfg))
     if learned_samples_override is not None:
-        learned_samples = learned_samples_override.astype(np.float32)
+        learned_samples = _clip_points_to_eval_bounds(
+            learned_samples_override.astype(np.float32),
+            x_train,
+            cfg,
+        )
     else:
         x0 = x0_override.astype(np.float32) if x0_override is not None else sample_eval_seed_points(x_train, cfg)
         if postprocess_fn is not None:
             x0 = postprocess_fn(x0)
         learned_samples, _ = project_fn(model, x0, eps_stop)
+        learned_samples = _clip_points_to_eval_bounds(
+            learned_samples.astype(np.float32),
+            x_train,
+            cfg,
+        )
         learned_samples = learned_samples.astype(np.float32)
         if postprocess_fn is not None:
             learned_samples = postprocess_fn(learned_samples)
@@ -373,7 +394,11 @@ def evaluate_projection_metrics(
         dist_space = "data_space"
 
     proj, steps = project_fn(model, x_eval, eval_eps_used)
-    proj = proj.astype(np.float32)
+    proj = _clip_points_to_eval_bounds(
+        proj.astype(np.float32),
+        x_train,
+        cfg,
+    )
     if postprocess_fn is not None:
         proj = postprocess_fn(proj).astype(np.float32)
 

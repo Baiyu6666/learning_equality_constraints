@@ -6,8 +6,13 @@ import csv
 import glob
 import json
 import os
+import time
 from collections import defaultdict
 from typing import Any
+
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# Keep local W&B files under repo-root/wandb regardless of launch cwd.
+os.environ["WANDB_DIR"] = os.path.join(_PROJECT_ROOT, "wandb")
 
 from common.unified_experiment import VALID_METHODS, run_one
 
@@ -15,9 +20,6 @@ try:
     import wandb  # type: ignore
 except Exception:
     wandb = None
-
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
 
 def _resolve_config_root(config_root: str) -> str:
     p = str(config_root).strip()
@@ -190,6 +192,13 @@ def _write_leaderboard_csv(path: str, results: list[dict[str, Any]]) -> list[dic
     return rows
 
 
+def _append_jsonl(path: str, row: dict[str, Any]) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        f.flush()
+
+
 def main() -> None:
     args = _build_parser().parse_args()
     config_root = _resolve_config_root(str(args.config_root))
@@ -214,6 +223,8 @@ def main() -> None:
 
     os.makedirs(outdir, exist_ok=True)
     effective_overrides = _with_default_non_gif_overrides(args.override)
+    partial_jsonl = os.path.join(outdir, "per_run_metrics.jsonl")
+    partial_summary = os.path.join(outdir, "summary_metrics.partial.json")
 
     wb_run = None
     if args.wandb_enable:
@@ -235,6 +246,8 @@ def main() -> None:
 
     all_results: list[dict[str, Any]] = []
     step = 0
+    total_per_method = {m: len(datasets) * len(seed_values) for m in methods}
+    done_per_method = {m: 0 for m in methods}
     for method in methods:
         for dataset in datasets:
             for seed in seed_values:
@@ -250,12 +263,33 @@ def main() -> None:
                 result["seed"] = seed
                 result["loaded_config_paths"] = loaded
                 all_results.append(result)
+
+                # Persist each finished run immediately so interrupted benchmarks
+                # can still be recovered/aggregated.
+                row = {
+                    "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "method": method,
+                    "dataset": dataset,
+                    "seed": seed,
+                    "metrics": result.get("metrics", {}),
+                    "config": result.get("config", {}),
+                    "loaded_config_paths": loaded,
+                }
+                _append_jsonl(partial_jsonl, row)
+                with open(partial_summary, "w", encoding="utf-8") as f:
+                    json.dump(all_results, f, indent=2, ensure_ascii=False)
+
                 m = result["metrics"]
                 print(
                     f"[done] method={method} dataset={dataset} seed={seed} "
                     f"proj_dist={m.get('proj_manifold_dist', float('nan')):.6f} "
                     f"recall={m.get('pred_recall', float('nan')):.6f} "
                     f"FPrate={m.get('pred_FPrate', float('nan')):.6f}"
+                )
+                done_per_method[method] += 1
+                print(
+                    f"[progress] method={method} "
+                    f"{done_per_method[method]}/{total_per_method[method]} completed"
                 )
                 if wb_run is not None:
                     step += 1
@@ -285,6 +319,8 @@ def main() -> None:
     leaderboard = _write_leaderboard_csv(leaderboard_csv, all_results)
 
     print(f"[saved] {summary_path}")
+    print(f"[saved] {partial_jsonl}")
+    print(f"[saved] {partial_summary}")
     print(f"[saved] {per_case_csv}")
     print(f"[saved] {leaderboard_csv}")
     print("[leaderboard]", leaderboard)

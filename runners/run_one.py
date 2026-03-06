@@ -6,15 +6,16 @@ import glob
 import json
 import os
 
+_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+# Keep local W&B files under repo-root/wandb regardless of launch cwd.
+os.environ["WANDB_DIR"] = os.path.join(_PROJECT_ROOT, "wandb")
+
 from common.unified_experiment import VALID_METHODS, run_one
 
 try:
     import wandb  # type: ignore
 except Exception:
     wandb = None
-
-_PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-
 
 def _resolve_config_root(config_root: str) -> str:
     p = str(config_root).strip()

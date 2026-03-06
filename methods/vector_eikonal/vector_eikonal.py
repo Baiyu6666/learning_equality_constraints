@@ -53,10 +53,10 @@ from methods.vector_eikonal.codim_utils import estimate_codim_local_pca
 DEFAULT_DATASETS = [
     # "3d_torus_surface",
 
-    "3d_spatial_arm_circle_n3",
+    "3d_spatial_arm_ellip_n3",
     # "3d_vz_2d_sine",
     # "3d_0z_2d_ellipse"
-    # "3d_spatial_arm_circle_n3",
+    # "3d_spatial_arm_ellip_n3",
 
     # "3d_spatial_arm_plane_n3",
     # "6d_spatial_arm_up_n6_py",
@@ -116,6 +116,16 @@ class DemoCfg:
     codim_auto_k_neighbors: int = 16
     codim_auto_const_axis_std_ratio: float = 1e-3
     codim_auto_strict_check: bool = True
+    codim_learn_enable: bool = False
+    codim_learn_m_max: int = 12
+    codim_learn_stage1_ratio: float = 0.6
+    codim_learn_sparsity_final: float = 1e-3
+    codim_learn_gate_lr: float = 1e-3
+    codim_learn_gate_threshold: float = 0.5
+    codim_learn_min_active: int = 1
+    codim_learn_min_active_weight: float = 1.0
+    codim_learn_stage1_lam_eikonal: float = 0.0
+    codim_learn_finetune_ratio: float = 0.1
 
     show_3d_plot: bool = not False
     surface_plot_n: int = 28
@@ -287,6 +297,28 @@ def _resolve_dataset(name: str, cfg: DemoCfg) -> dict[str, Any]:
 
 
 def _eikonal_multi_constraint(model: nn.Module, x: torch.Tensor, lam_ortho: float) -> torch.Tensor:
+    # Codim-learning branch: weighted eikonal
+    #   J_w = diag(sqrt(w)) J,   L = ||J_w J_w^T - diag(w)||_F^2
+    # where w is the global gate vector in [0,1]^k.
+    if hasattr(model, "gates") and hasattr(model, "raw"):
+        f_raw = model.raw(x)  # type: ignore[attr-defined]
+        if f_raw.dim() == 1:
+            f_raw = f_raw.unsqueeze(1)
+        k = f_raw.shape[1]
+        grads = []
+        for i in range(k):
+            gi = torch.autograd.grad(f_raw[:, i].sum(), x, create_graph=True, retain_graph=True)[0]
+            grads.append(gi)
+        j_raw = torch.stack(grads, dim=1)  # (B, k, d)
+        gram_raw = torch.matmul(j_raw, j_raw.transpose(1, 2))  # (B, k, k)
+        w = model.gates().to(dtype=x.dtype)  # type: ignore[attr-defined]
+        ws = torch.sqrt(torch.clamp(w, min=1e-8))
+        weight_outer = ws.view(1, k, 1) * ws.view(1, 1, k)
+        gram_w = gram_raw * weight_outer
+        target = torch.diag(w).unsqueeze(0)
+        return ((gram_w - target) ** 2).mean()
+
+    # Standard branch (no codim-learning gate): classic vector-eikonal.
     f = model(x)
     if f.dim() == 1:
         f = f.unsqueeze(1)
@@ -306,6 +338,72 @@ def _eikonal_multi_constraint(model: nn.Module, x: torch.Tensor, lam_ortho: floa
     return loss_row + float(lam_ortho) * loss_ortho
 
 
+class _GatedConstraintModel(nn.Module):
+    def __init__(self, base: MLP, out_dim: int) -> None:
+        super().__init__()
+        self.base = base
+        # Break symmetry: initialize around 0.5 with tiny per-dim noise.
+        k = int(out_dim)
+        g0 = torch.full((k,), 0.5, dtype=torch.float32)
+        if k > 1:
+            g0 = (g0 + 0.01 * (torch.rand(k, dtype=torch.float32) - 0.5)).clamp(0.49, 0.51)
+        eps = 1e-6
+        g0 = g0.clamp(eps, 1.0 - eps)
+        self.gate_logits = nn.Parameter(torch.log(g0) - torch.log1p(-g0))
+
+    def gates(self) -> torch.Tensor:
+        return torch.sigmoid(self.gate_logits)
+
+    def raw(self, x: torch.Tensor) -> torch.Tensor:
+        return self.base(x)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.raw(x) * self.gates().reshape(1, -1)
+
+
+def _sample_xr_batch(
+    xb: torch.Tensor,
+    x_train_dev: torch.Tensor,
+    mins_t: torch.Tensor,
+    maxs_t: torch.Tensor,
+    span_t: torch.Tensor,
+    near_ratio: float,
+    near_std_ratio: float,
+) -> torch.Tensor:
+    bsz, dim = xb.shape
+    n_near = max(0, min(int(round(bsz * near_ratio)), bsz))
+    n_box = bsz - n_near
+    parts = []
+    if n_near > 0:
+        idx = torch.randint(0, x_train_dev.shape[0], size=(n_near,), device=xb.device)
+        x_near = x_train_dev[idx]
+        x_near = x_near + torch.randn_like(x_near) * (near_std_ratio * span_t)
+        x_near = torch.max(torch.min(x_near, maxs_t), mins_t)
+        parts.append(x_near)
+    if n_box > 0:
+        x_box = torch.rand((n_box, dim), device=xb.device)
+        x_box = x_box * (maxs_t - mins_t) + mins_t
+        parts.append(x_box)
+    xr = torch.cat(parts, dim=0)
+    xr = xr[torch.randperm(xr.shape[0], device=xb.device)]
+    xr.requires_grad_(True)
+    return xr
+
+
+def _prune_mlp_outputs(base: MLP, active_idx: np.ndarray, in_dim: int, hidden: int, depth: int) -> MLP:
+    pruned = MLP(in_dim=in_dim, hidden=hidden, depth=depth, out_dim=int(len(active_idx)))
+    with torch.no_grad():
+        # Hidden layers are shared unchanged.
+        for i in range(depth * 2):
+            pruned.net[i].load_state_dict(base.net[i].state_dict())
+        last_old = base.net[-1]
+        last_new = pruned.net[-1]
+        idx_t = torch.as_tensor(active_idx, dtype=torch.long, device=last_old.weight.device)
+        last_new.weight.copy_(last_old.weight.index_select(0, idx_t))
+        last_new.bias.copy_(last_old.bias.index_select(0, idx_t))
+    return pruned
+
+
 def train_on_eikonal_only(
     cfg: DemoCfg, x_train: np.ndarray, constraint_dim: int
 ) -> tuple[nn.Module, dict[str, np.ndarray]]:
@@ -319,12 +417,23 @@ def train_on_eikonal_only(
         pin_memory=(cfg.device == "cuda"),
         num_workers=0,
     )
-    model = MLP(
-        in_dim=x_train.shape[1],
-        hidden=cfg.hidden,
-        depth=cfg.depth,
-        out_dim=max(1, int(constraint_dim)),
-    ).to(cfg.device)
+    if bool(getattr(cfg, "codim_learn_enable", False)):
+        m_max = int(max(1, min(int(getattr(cfg, "codim_learn_m_max", 12)), int(x_train.shape[1] - 1))))
+        base = MLP(
+            in_dim=x_train.shape[1],
+            hidden=cfg.hidden,
+            depth=cfg.depth,
+            out_dim=m_max,
+        ).to(cfg.device)
+        gmodel = _GatedConstraintModel(base=base, out_dim=m_max).to(cfg.device)
+        model = gmodel
+    else:
+        model = MLP(
+            in_dim=x_train.shape[1],
+            hidden=cfg.hidden,
+            depth=cfg.depth,
+            out_dim=max(1, int(constraint_dim)),
+        ).to(cfg.device)
     opt = torch.optim.Adam(model.parameters(), lr=cfg.lr)
     scheduler = None
     if int(cfg.lr_decay_step) > 0 and float(cfg.lr_decay_gamma) < 1.0:
@@ -356,37 +465,64 @@ def train_on_eikonal_only(
         "f_abs_mean": [],
         "grad_norm_mean": [],
         "ortho_err": [],
+        "gate_mean": [],
     }
 
     model.train()
-    for ep in range(cfg.epochs):
+    n_ep_total = int(cfg.epochs)
+    n_ep_stage1 = n_ep_total
+    n_ep_stage2 = 0
+    if bool(getattr(cfg, "codim_learn_enable", False)):
+        n_ep_stage1 = max(1, int(round(n_ep_total * float(getattr(cfg, "codim_learn_stage1_ratio", 0.6)))))
+        n_ep_stage1 = min(n_ep_total, n_ep_stage1)
+        n_ep_stage2 = max(0, n_ep_total - n_ep_stage1)
+        # Stage-1: freeze gate.
+        model.gate_logits.requires_grad_(False)  # type: ignore[attr-defined]
+
+    for ep in range(n_ep_total):
+        if bool(getattr(cfg, "codim_learn_enable", False)) and ep == n_ep_stage1 and n_ep_stage2 > 0:
+            # Stage-2: unfreeze gate and use separate LR.
+            model.gate_logits.requires_grad_(True)  # type: ignore[attr-defined]
+            opt = torch.optim.Adam(
+                [
+                    {"params": model.base.parameters(), "lr": float(cfg.lr)},  # type: ignore[attr-defined]
+                    {"params": [model.gate_logits], "lr": float(getattr(cfg, "codim_learn_gate_lr", 1e-3))},  # type: ignore[attr-defined]
+                ]
+            )
+            scheduler = None
+
         for (xb,) in dl:
             xb = xb.to(cfg.device)
             opt.zero_grad(set_to_none=True)
 
-            f_on = model(xb)
+            if bool(getattr(cfg, "codim_learn_enable", False)):
+                f_on = model.raw(xb)  # type: ignore[attr-defined]
+            else:
+                f_on = model(xb)
             loss_on = (f_on ** 2).mean()
 
-            bsz, dim = xb.shape
-            n_near = max(0, min(int(round(bsz * near_ratio)), bsz))
-            n_box = bsz - n_near
-            parts = []
-            if n_near > 0:
-                idx = torch.randint(0, x_train_dev.shape[0], size=(n_near,), device=cfg.device)
-                x_near = x_train_dev[idx]
-                x_near = x_near + torch.randn_like(x_near) * (near_std_ratio * span_t)
-                x_near = torch.max(torch.min(x_near, maxs_t), mins_t)
-                parts.append(x_near)
-            if n_box > 0:
-                x_box = torch.rand((n_box, dim), device=cfg.device)
-                x_box = x_box * (maxs_t - mins_t) + mins_t
-                parts.append(x_box)
-            xr = torch.cat(parts, dim=0)
-            xr = xr[torch.randperm(xr.shape[0], device=cfg.device)]
-            xr.requires_grad_(True)
-
+            xr = _sample_xr_batch(xb, x_train_dev, mins_t, maxs_t, span_t, near_ratio, near_std_ratio)
             loss_eik = _eikonal_multi_constraint(model, xr, lam_ortho=float(cfg.lam_eikonal_ortho))
-            loss = loss_on + cfg.lam_eikonal * loss_eik
+
+            if bool(getattr(cfg, "codim_learn_enable", False)):
+                if ep < n_ep_stage1:
+                    lam_eik = float(getattr(cfg, "codim_learn_stage1_lam_eikonal", 0.0))
+                    loss = loss_on + lam_eik * loss_eik
+                else:
+                    t = float((ep - n_ep_stage1 + 1) / max(1, n_ep_stage2))
+                    lam_sparse = float(getattr(cfg, "codim_learn_sparsity_final", 1e-3)) * t
+                    g = model.gates()  # type: ignore[attr-defined]
+                    min_active = float(max(1, int(getattr(cfg, "codim_learn_min_active", 1))))
+                    loss_sparse = torch.mean(g)
+                    loss_min_active = torch.relu(min_active - torch.sum(g)) ** 2
+                    loss = (
+                        loss_on
+                        + float(cfg.lam_eikonal) * loss_eik
+                        + lam_sparse * loss_sparse
+                        + float(getattr(cfg, "codim_learn_min_active_weight", 1.0)) * loss_min_active
+                    )
+            else:
+                loss = loss_on + cfg.lam_eikonal * loss_eik
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
@@ -419,6 +555,10 @@ def train_on_eikonal_only(
             hist["f_abs_mean"].append(torch.mean(torch.abs(f_eval), dim=0).detach().cpu().numpy())
             hist["grad_norm_mean"].append(torch.mean(grad_norm, dim=0).detach().cpu().numpy())
             hist["ortho_err"].append(float(ortho_err))
+            if bool(getattr(cfg, "codim_learn_enable", False)):
+                hist["gate_mean"].append(model.gates().detach().cpu().numpy())  # type: ignore[attr-defined]
+            else:
+                hist["gate_mean"].append(np.ones((int(f_eval.shape[1]),), dtype=np.float32))
             if ((ep + 1) % max(1, int(cfg.train_log_every))) == 0 or ep == 0 or (ep + 1) == int(cfg.epochs):
                 f_m = np.mean(np.abs(f_eval.detach().cpu().numpy()), axis=0)
                 g_m = np.mean(grad_norm.detach().cpu().numpy(), axis=0)
@@ -429,14 +569,57 @@ def train_on_eikonal_only(
                     f"[train] method=eikonal ep={ep+1:4d}/{cfg.epochs} "
                     f"| lr={lr_now:.2e} | {f_s} | {g_s} | ortho={ortho_err:.5f}"
                 )
+                if bool(getattr(cfg, "codim_learn_enable", False)):
+                    g_np = model.gates().detach().cpu().numpy()  # type: ignore[attr-defined]
+                    g_srt = np.sort(g_np)[::-1]
+                    g_txt = ", ".join([f"{v:.3f}" for v in g_srt[: min(6, len(g_srt))]])
+                    print(f"[train] gates(top)={g_txt}")
         if scheduler is not None:
             scheduler.step()
+
+    learned_codim = int(max(1, int(constraint_dim)))
+    if bool(getattr(cfg, "codim_learn_enable", False)):
+        g_np = model.gates().detach().cpu().numpy()  # type: ignore[attr-defined]
+        thr = float(getattr(cfg, "codim_learn_gate_threshold", 0.5))
+        active = np.where(g_np > thr)[0]
+        if active.size == 0:
+            active = np.array([int(np.argmax(g_np))], dtype=np.int64)
+        learned_codim = int(active.size)
+        print(f"[codim-gate] m_max={len(g_np)} -> m_hat={learned_codim} (thr={thr})")
+
+        # Prune to compact model for checkpoint/planning compatibility.
+        pruned = _prune_mlp_outputs(
+            model.base,  # type: ignore[attr-defined]
+            active.astype(np.int64),
+            in_dim=int(x_train.shape[1]),
+            hidden=int(cfg.hidden),
+            depth=int(cfg.depth),
+        ).to(cfg.device)
+
+        # Brief fine-tune after pruning.
+        ft_epochs = int(max(1, round(float(getattr(cfg, "codim_learn_finetune_ratio", 0.1)) * max(1, cfg.epochs))))
+        opt_ft = torch.optim.Adam(pruned.parameters(), lr=float(cfg.lr))
+        for _ in range(ft_epochs):
+            for (xb,) in dl:
+                xb = xb.to(cfg.device)
+                opt_ft.zero_grad(set_to_none=True)
+                f_on = pruned(xb)
+                loss_on = (f_on ** 2).mean()
+                xr = _sample_xr_batch(xb, x_train_dev, mins_t, maxs_t, span_t, near_ratio, near_std_ratio)
+                loss_eik = _eikonal_multi_constraint(pruned, xr, lam_ortho=float(cfg.lam_eikonal_ortho))
+                loss = loss_on + float(cfg.lam_eikonal) * loss_eik
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(pruned.parameters(), 1.0)
+                opt_ft.step()
+        model = pruned
 
     out_hist = {
         "epoch": np.asarray(hist["epoch"], dtype=np.float32),
         "f_abs_mean": np.asarray(hist["f_abs_mean"], dtype=np.float32),
         "grad_norm_mean": np.asarray(hist["grad_norm_mean"], dtype=np.float32),
         "ortho_err": np.asarray(hist["ortho_err"], dtype=np.float32),
+        "gate_mean": np.asarray(hist["gate_mean"], dtype=np.float32),
+        "learned_codim": np.asarray([learned_codim], dtype=np.int32),
     }
     return model, out_hist
 
@@ -489,6 +672,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             codim = 1
 
     model, train_hist = train_on_eikonal_only(cfg, x_train, constraint_dim=codim)
+    learned_codim = int(np.asarray(train_hist.get("learned_codim", np.asarray([codim]))).reshape(-1)[0])
     print(f"[run] training finished: dataset={name}")
     os.makedirs(outdir, exist_ok=True)
     ckpt_path = os.path.join(outdir, f"{name}_on_eikonal_model.pt")
@@ -497,7 +681,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
             "dataset": str(name),
             "model_state": model.state_dict(),
             "in_dim": int(x_train.shape[1]),
-            "constraint_dim": int(codim),
+            "constraint_dim": int(learned_codim),
             "hidden": int(cfg.hidden),
             "depth": int(cfg.depth),
             "x_train": x_train.astype(np.float32),
@@ -720,7 +904,7 @@ def run_dataset(name: str, cfg: DemoCfg, outdir: str) -> None:
                 title=f"{name}: projection errors before/after",
             )
             print(f"saved: {out_dist}")
-    if planning_enabled and name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if planning_enabled and name in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
         out_plan = os.path.join(outdir, f"{name}_on_eikonal_planning_demo.png")
         planned_paths = _plot_planar_arm_planning(model, name, x_train, out_plan, cfg, render_pybullet=False)
     if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):

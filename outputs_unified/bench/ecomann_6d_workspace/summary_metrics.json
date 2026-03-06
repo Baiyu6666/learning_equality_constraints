@@ -1,0 +1,90 @@
+[
+  {
+    "method": "ecomann",
+    "dataset": "6d_workspace_sine_surface_pose_traj",
+    "metrics": {
+      "pred_on_mean_v": 0.004470424726605415,
+      "proj_manifold_dist": 0.20256930589675903,
+      "proj_v_residual": 0.04193306714296341,
+      "proj_true_dist": 0.429958701133728,
+      "proj_steps": 5.04833984375,
+      "pred_recall": 0.689208984375,
+      "pred_FPrate": 0.006105006105006105,
+      "pred_precision": 0.017333984375,
+      "eval_eps_used": 0.13618654012680054,
+      "bidirectional_chamfer": 0.42322152853012085,
+      "gt_to_learned_mean": 0.08828602731227875,
+      "learned_to_gt_mean": 0.3349354863166809,
+      "gt_to_learned_p95": 0.13311772048473358,
+      "learned_to_gt_p95": 1.1990010738372803,
+      "n_gt": 1024.0,
+      "n_learned": 4096.0,
+      "eps_stop": 0.13618654012680054,
+      "train_seconds": 974.8358148549996
+    },
+    "eval_path": "/home/baiyu/PycharmProjects/equality_manofld/outputs_unified/bench/ecomann_6d_workspace/ecomann/6d_workspace_sine_surface_pose_traj_ecomann_eval.json",
+    "ckpt_path": "/home/baiyu/PycharmProjects/equality_manofld/outputs_unified/bench/ecomann_6d_workspace/ecomann/6d_workspace_sine_surface_pose_traj_ecomann_model.pt",
+    "config": {
+      "seed": 173,
+      "device": "cuda",
+      "n_train": 3048,
+      "n_grid": 8192,
+      "hidden_sizes": [
+        128,
+        128,
+        128
+      ],
+      "epochs": 20,
+      "batch_size": 128,
+      "lr": 0.01,
+      "weight_decay": 0.0,
+      "use_batch_norm": true,
+      "norm_level_clip_max": 300.0,
+      "is_performing_data_augmentation": true,
+      "is_optimizing_local_tangent_space_alignment_loss": true,
+      "is_optimizing_signed_siamese_pairs": true,
+      "is_aligning_lpca_normal_space_eigvecs": true,
+      "is_augmenting_w_rand_comb_of_normaleigvecs": true,
+      "clean_aug_data": true,
+      "siam_mode": "all",
+      "n_normal_space_traversal": 3,
+      "n_local_neighborhood_mult": 1,
+      "train_log_every": 5,
+      "projector": {
+        "alpha": 0.3,
+        "steps": 80,
+        "min_steps": 20,
+        "tol": 5e-05
+      },
+      "planner": {
+        "enable": false,
+        "method": "traj_opt",
+        "steps": 64,
+        "opt_steps": 1240,
+        "opt_lr": 0.01,
+        "opt_lam_smooth": 0.2,
+        "lam_manifold": 1.0,
+        "lam_len_joint": 0.4,
+        "trust_scale": 0.8,
+        "off_dist": 0.6,
+        "pair_min_ratio": 0.15,
+        "pair_max_ratio": 0.35,
+        "pair_tries": 1200,
+        "init_mode": "joint_spline",
+        "joint_mid_noise": 0.0,
+        "anim_fps": 6,
+        "anim_stride": 1,
+        "save_gif": false,
+        "pybullet_render": false,
+        "pybullet_real_time_dt": 0.06
+      }
+    },
+    "loaded_config_paths": [
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/base.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/methods/ecomann.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/datasets/6d_workspace_sine_surface_pose_traj.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/ecomann_6d_workspace_sine_surface_pose_traj.json"
+    ],
+    "seed": 173
+  }
+]

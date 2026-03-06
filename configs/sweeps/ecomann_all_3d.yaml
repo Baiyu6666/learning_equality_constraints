@@ -1,0 +1,27 @@
+project: equality_manifold_unified
+entity: pby
+program: runners/run_sweep.py
+method: grid
+metric:
+  name: sweep/avg/proj_manifold_dist
+  goal: minimize
+parameters:
+  seed:
+    values: [173]
+
+command:
+  - ${env}
+  - python
+  - -m
+  - runners.run_sweep
+  - --method
+  - ecomann
+  - --datasets
+  - 3d_planar_arm_line_n3_traj,3d_spatial_arm_ellip_n3,3d_vz_2d_ellipse,3d_twosphere_traj
+  - --config-root
+  - configs
+  - --outdir
+  - outputs_unified/sweeps/ecomann_all_3d
+  - --method-tag-prefix
+  - method
+

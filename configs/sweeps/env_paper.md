@@ -1,7 +1,7 @@
 Inital sweep
 
 2d_ellipse,2d_figure_eight,2d_looped_spiro,2d_planar_arm_line_n2, 2d_sparse_sine,2d_square 
-3d_planar_arm_line_n3,3d_spatial_arm_circle_n3, 3d_spiral,3d_twosphere,3d_torus_surface,3d_vz_2d_ellipse
+3d_planar_arm_line_n3,3d_spatial_arm_ellip_n3, 3d_spiral,3d_twosphere,3d_torus_surface,3d_vz_2d_ellipse
 6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose
 
 
@@ -9,6 +9,9 @@ Inital sweep
 
 Simplified
 
-2d_figure_eight,2d_looped_spiro,2d_planar_arm_line_n2, 2d_sparse_sine
-3d_planar_arm_line_n3_traj,3d_spatial_arm_circle_n3, 3d_twosphere_traj,3d_vz_2d_ellipse
-6d_spatial_arm_up_n6, 6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose_traj
+2d_ellipse,2d_looped_spiro,2d_planar_arm_line_n2, 2d_sparse_sine
+3d_planar_arm_line_n3_traj,3d_spatial_arm_ellip_n3, 3d_twosphere_traj,3d_vz_2d_ellipse, 3d_torus_surface_traj
+6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose_traj
+
+
+6d_spatial_arm_up_n6, 

@@ -1,0 +1,20 @@
+{
+  "pred_on_mean_v": 0.004402522463351488,
+  "proj_manifold_dist": 0.1635313332080841,
+  "proj_v_residual": 0.013422701507806778,
+  "proj_true_dist": 0.24338282644748688,
+  "proj_steps": 21.14111328125,
+  "pred_recall": 0.736083984375,
+  "pred_FPrate": 0.10574342458400429,
+  "pred_precision": 0.48974609375,
+  "eval_eps_used": 0.16525854170322418,
+  "dist_space": "data_space",
+  "bidirectional_chamfer": 0.297669917345047,
+  "gt_to_learned_mean": 0.13333365321159363,
+  "learned_to_gt_mean": 0.16433626413345337,
+  "gt_to_learned_p95": 0.4351171553134918,
+  "learned_to_gt_p95": 0.7799460887908936,
+  "n_gt": 1024,
+  "n_learned": 4096,
+  "eps_stop": 0.16525854170322418
+}

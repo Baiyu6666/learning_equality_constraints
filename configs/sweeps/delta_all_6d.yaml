@@ -17,7 +17,7 @@ command:
   - --method
   - delta
   - --datasets
-  - 6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose
+  - 6d_spatial_arm_up_n6_py,6d_workspace_sine_surface_pose_traj
   - --config-root
   - configs
   - --outdir

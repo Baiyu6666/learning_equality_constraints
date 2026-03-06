@@ -46,6 +46,7 @@ BASE_3D_DATASETS = [
     "3d_planar_arm_line_n3_traj",
     "3d_spatial_arm_plane_n3",
     "3d_spatial_arm_plane_n3_traj",
+    "3d_spatial_arm_ellip_n3",
     "3d_spatial_arm_circle_n3",
 ]
 
@@ -157,11 +158,12 @@ def resolve_dataset(
             if (
                 "3d_planar_arm_line_n3" in name
                 or "3d_spatial_arm_plane_n3" in name
+                or "3d_spatial_arm_ellip_n3" in name
                 or "3d_spatial_arm_circle_n3" in name
             )
             else ("x", "y", "z")
         )
-        true_codim = 2 if name in ("3d_spatial_arm_circle_n3", "3d_spiral") else 1
+        true_codim = 2 if name in ("3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3", "3d_spiral") else 1
         return {
             "name": name,
             "x_train": _as_float32(x),

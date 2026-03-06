@@ -17,7 +17,7 @@ command:
   - --method
   - delta
   - --datasets
-  - 3d_planar_arm_line_n3,3d_spatial_arm_circle_n3, 3d_spiral,3d_twosphere,3d_torus_surface,3d_vz_2d_ellipse
+  - 3d_planar_arm_line_n3_traj,3d_spatial_arm_ellip_n3, 3d_twosphere_traj,3d_vz_2d_ellipse
   - --config-root
   - configs
   - --outdir

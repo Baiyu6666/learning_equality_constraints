@@ -30,7 +30,7 @@ Dataset summary (explicit names):
 | `3d_torus_surface`        |        3 |     1 | Torus surface                                                              |
 | `3d_planar_arm_line_n3`   |        3 |     1 | 3-DoF planar arm, EE constrained on a workspace line                       |
 | `3d_spatial_arm_plane_n3` |        3 |     1 | 3-DoF spatial arm, EE constrained on a workspace plane                     |
-| `3d_spatial_arm_circle_n3`|        3 |     2 | 3-DoF spatial arm, EE constrained on workspace circle (`x^2+y^2=r^2,z=z0`) |
+| `3d_spatial_arm_ellip_n3`|        3 |     2 | 3-DoF spatial arm, EE constrained on workspace ellipse (`x=a cos t, y=b sin t, z=z0`) |
 | `6d_spatial_arm_up_n6`    |        6 |     2 | 6-DoF UR5-style arm upward-orientation set (pybullet backend)              |
 | `6d_spatial_arm_up_n6_py` |        6 |     2 | 6-DoF UR5-style arm upward-orientation set (analytic backend)              |
 | `6d_workspace_sine_surface_pose` | 6 | 3 | Workspace pose `[x,y,z,roll,pitch,yaw]`: position on sine-wave surface, local z-axis aligned with surface normal, free spin around normal |

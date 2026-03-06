@@ -42,7 +42,7 @@
   "projector": {
     "alpha": 0.3,
     "steps": 100,
-    "min_steps": 30
+    "min_steps": 50
   },
 
   "planner": {

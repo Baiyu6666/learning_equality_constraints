@@ -495,39 +495,43 @@ def _spatial_arm_plane_n3(cfg) -> Tuple[np.ndarray, np.ndarray]:
     return x_train, grid
 
 
-def _spatial_arm_circle_n3(cfg) -> Tuple[np.ndarray, np.ndarray]:
-    # 3-DoF arm (q1 yaw, q2/q3 pitch chain) constrained to workspace circle:
-    # x^2 + y^2 = r0^2, z = z0  (codim=2 in 3D joint space).
+def _spatial_arm_ellip_n3(cfg) -> Tuple[np.ndarray, np.ndarray]:
+    # 3-DoF arm (q1 yaw, q2/q3 pitch chain) constrained to workspace ellipse:
+    # x = a cos(t), y = b sin(t), z = z0  (codim=2 in 3D joint space).
+    # Keep old dataset alias for backward compatibility.
     l1, l2 = 1.0, 0.8
-    r0 = 1.25
+    a = 1.35
+    b = 0.95
     z0 = 0.35
 
-    rho2 = r0 * r0 + z0 * z0
-    c3 = (rho2 - l1 * l1 - l2 * l2) / (2.0 * l1 * l2)
-    c3 = float(np.clip(c3, -1.0, 1.0))
-    s3_mag = float(np.sqrt(max(0.0, 1.0 - c3 * c3)))
-
-    def _solve_q2_q3(sign: float) -> Tuple[float, float]:
-        s3 = float(sign) * s3_mag
-        q3 = math.atan2(s3, c3)
-        q2 = math.atan2(z0, r0) - math.atan2(l2 * s3, l1 + l2 * c3)
-        q2 = float(_wrap_to_pi(np.array([q2], dtype=np.float32))[0])
-        q3 = float(_wrap_to_pi(np.array([q3], dtype=np.float32))[0])
-        return q2, q3
-
-    q2a, q3a = _solve_q2_q3(+1.0)
-    q2b, q3b = _solve_q2_q3(-1.0)
-
-    def _build(n_target: int) -> np.ndarray:
+    def _build(n_target: int, *, use_grid: bool = False) -> np.ndarray:
         n_target = max(1, int(n_target))
-        q1 = np.random.uniform(-math.pi, math.pi, size=(n_target,)).astype(np.float32)
-        pick_a = np.random.rand(n_target) < 0.5
-        q2 = np.where(pick_a, q2a, q2b).astype(np.float32)
-        q3 = np.where(pick_a, q3a, q3b).astype(np.float32)
+        if use_grid:
+            t = np.linspace(-math.pi, math.pi, n_target, endpoint=False, dtype=np.float32)
+        else:
+            t = np.random.uniform(-math.pi, math.pi, size=(n_target,)).astype(np.float32)
+
+        x = (a * np.cos(t)).astype(np.float32)
+        y = (b * np.sin(t)).astype(np.float32)
+        rho = np.sqrt(np.maximum(x * x + y * y, 1e-8)).astype(np.float32)
+        q1 = np.arctan2(y, x).astype(np.float32)
+
+        rho2 = rho * rho + z0 * z0
+        c3 = (rho2 - l1 * l1 - l2 * l2) / (2.0 * l1 * l2)
+        c3 = np.clip(c3, -1.0, 1.0).astype(np.float32)
+        s3_mag = np.sqrt(np.maximum(0.0, 1.0 - c3 * c3)).astype(np.float32)
+
+        pick_elbow_up = np.random.rand(n_target) < 0.5
+        s3 = np.where(pick_elbow_up, s3_mag, -s3_mag).astype(np.float32)
+        q3 = np.arctan2(s3, c3).astype(np.float32)
+        q2 = (
+            np.arctan2(np.full_like(rho, z0, dtype=np.float32), rho)
+            - np.arctan2(l2 * s3, l1 + l2 * c3)
+        ).astype(np.float32)
         return np.stack([_wrap_to_pi(q1), _wrap_to_pi(q2), _wrap_to_pi(q3)], axis=1).astype(np.float32)
 
-    x_train = _build(cfg.n_train)
-    grid = _build(cfg.n_grid)
+    x_train = _build(cfg.n_train, use_grid=False)
+    grid = _build(cfg.n_grid, use_grid=True)
     return x_train, grid
 
 
@@ -1003,8 +1007,8 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         return _planar_arm_line_n3(cfg)
     if name == "3d_spatial_arm_plane_n3":
         return _spatial_arm_plane_n3(cfg)
-    if name == "3d_spatial_arm_circle_n3":
-        return _spatial_arm_circle_n3(cfg)
+    if name in ("3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
+        return _spatial_arm_ellip_n3(cfg)
     if name == "6d_spatial_arm_up_n6":
         return _spatial_arm_up_n6(cfg)
     if name == "6d_workspace_sine_surface_pose":

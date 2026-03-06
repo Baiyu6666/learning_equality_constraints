@@ -841,7 +841,7 @@ def _plot_planar_arm_planning(
         y_line = 0.35  # here means z-plane value
         is_spatial = True
         use_pybullet_n6 = False
-    elif name == "3d_spatial_arm_circle_n3":
+    elif name in ("3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
         lengths = [1.0, 0.8]
         y_line = None
         is_spatial = True

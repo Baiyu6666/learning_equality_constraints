@@ -1,0 +1,5 @@
+method,mean_over_datasets,std_over_datasets,n_datasets
+delta,0.6700399372428817,0.0,1
+eikonal,0.00968937911438356,0.0,1
+vae,0.2756078819665078,0.0,1
+ecomann,0.7547814780970161,0.0,1

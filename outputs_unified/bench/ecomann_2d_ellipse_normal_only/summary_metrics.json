@@ -1,0 +1,87 @@
+[
+  {
+    "method": "ecomann",
+    "dataset": "2d_ellipse",
+    "metrics": {
+      "pred_on_mean_v": 0.1258973926305771,
+      "proj_manifold_dist": 0.5304925441741943,
+      "proj_v_residual": 0.22399353981018066,
+      "proj_true_dist": 0.7567607164382935,
+      "proj_steps": 19.001953125,
+      "pred_recall": 0.876708984375,
+      "pred_FPrate": 0.9240273396424816,
+      "pred_precision": 0.057373046875,
+      "eval_eps_used": 0.7366176843643188,
+      "bidirectional_chamfer": 0.7132738828659058,
+      "gt_to_learned_mean": 0.18269452452659607,
+      "learned_to_gt_mean": 0.5305793285369873,
+      "gt_to_learned_p95": 0.5749848484992981,
+      "learned_to_gt_p95": 1.2872848510742188,
+      "n_gt": 1024.0,
+      "n_learned": 4096.0,
+      "eps_stop": 0.7366176843643188
+    },
+    "eval_path": "/home/baiyu/PycharmProjects/equality_manofld/outputs_unified/bench/ecomann_2d_ellipse_normal_only/ecomann/2d_ellipse_ecomann_eval.json",
+    "ckpt_path": "/home/baiyu/PycharmProjects/equality_manofld/outputs_unified/bench/ecomann_2d_ellipse_normal_only/ecomann/2d_ellipse_ecomann_model.pt",
+    "config": {
+      "seed": 173,
+      "device": "cuda",
+      "n_train": 128,
+      "n_grid": 4096,
+      "hidden_sizes": [
+        128,
+        128,
+        128
+      ],
+      "epochs": 120,
+      "batch_size": 128,
+      "lr": 5e-05,
+      "weight_decay": 0.0,
+      "use_batch_norm": true,
+      "is_performing_data_augmentation": true,
+      "is_optimizing_local_tangent_space_alignment_loss": false,
+      "is_optimizing_signed_siamese_pairs": false,
+      "is_aligning_lpca_normal_space_eigvecs": false,
+      "is_augmenting_w_rand_comb_of_normaleigvecs": false,
+      "clean_aug_data": true,
+      "siam_mode": "all",
+      "n_normal_space_traversal": 1,
+      "n_local_neighborhood_mult": 1,
+      "train_log_every": 5,
+      "projector": {
+        "alpha": 0.3,
+        "steps": 80,
+        "min_steps": 20
+      },
+      "planner": {
+        "enable": false,
+        "method": "traj_opt",
+        "steps": 64,
+        "opt_steps": 1240,
+        "opt_lr": 0.01,
+        "opt_lam_smooth": 0.2,
+        "lam_manifold": 1.0,
+        "lam_len_joint": 0.4,
+        "trust_scale": 0.8,
+        "off_dist": 0.6,
+        "pair_min_ratio": 0.15,
+        "pair_max_ratio": 0.35,
+        "pair_tries": 1200,
+        "init_mode": "joint_spline",
+        "joint_mid_noise": 0.0,
+        "anim_fps": 6,
+        "anim_stride": 1,
+        "save_gif": false,
+        "pybullet_render": false,
+        "pybullet_real_time_dt": 0.06
+      }
+    },
+    "loaded_config_paths": [
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/base.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/methods/ecomann.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/datasets/2d_ellipse.json",
+      "/home/baiyu/PycharmProjects/equality_manofld/configs/method_dataset/ecomann_2d_ellipse.json"
+    ],
+    "seed": 173
+  }
+]

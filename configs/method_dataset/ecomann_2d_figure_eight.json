@@ -1,0 +1,6 @@
+{
+  "epochs": 100,
+  "lr": 0.00015,
+  "n_normal_space_traversal": 5,
+  "n_local_neighborhood_mult": 1
+}
