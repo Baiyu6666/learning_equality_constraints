@@ -1,7 +1,0 @@
-{
-  "n_train": 512,
-  "n_grid": 4096,
-  "epochs": 1000,
-  "lam_off":0.5,
-  "sigmas": [0.7]
-}

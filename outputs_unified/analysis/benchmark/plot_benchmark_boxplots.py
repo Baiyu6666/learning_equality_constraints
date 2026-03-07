@@ -484,7 +484,7 @@ def _save_cross_dataset_csv(path: str, methods: list[str], datasets: list[str], 
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Plot benchmark grouped bar charts with error bars.")
-    p.add_argument("--bench", type=str, default="all4_spatial_arm_circle_n3_ellipse_3seed", help="Benchmark name (under outputs_unified/bench) or absolute path.")
+    p.add_argument("--bench", type=str, default="sphere_traj_4m_3seed_small", help="Benchmark name (under outputs_unified/bench) or absolute path.")
     p.add_argument("--methods", type=str, default=None, help="Comma-separated methods. Default: delta,eikonal,vae,ecomann")
     p.add_argument("--datasets", type=str, default=None, help="Comma-separated datasets; default auto from data.")
     p.add_argument("--metrics", type=str, default="proj_manifold_dist,pred_precision, train_seconds", help="Comma-separated metrics to plot.")
