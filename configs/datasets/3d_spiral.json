@@ -1,6 +1,6 @@
 {
   "n_train": 512,
-  "n_grid": 4096,
+  "traj_gene_n_grid": 4096,
   "codim_auto_k_neighbors": 5,
   "off_bank_size": 32,
   "off_bank_oversample": 8

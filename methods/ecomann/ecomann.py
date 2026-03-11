@@ -34,7 +34,7 @@ class Config:
     seed: int = 2116
     device: str = "auto"
     n_train: int = 512
-    n_grid: int = 4096
+    traj_gene_n_grid: int = 4096
 
     hidden_sizes: tuple[int, ...] = (36, 24, 18, 10)
     epochs: int = 25

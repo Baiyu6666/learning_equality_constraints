@@ -365,6 +365,11 @@ def plan_path_optimized(
     trust_scale: float,
     periodic: bool,
     init_path: np.ndarray | None = None,
+    obstacle_center_xy: tuple[float, float] | None = None,
+    obstacle_radius: float = 0.0,
+    obstacle_margin: float = 0.0,
+    lam_obstacle: float = 0.0,
+    obstacle_exclude_endpoints: bool = True,
 ) -> np.ndarray:
     if init_path is None:
         path0 = build_linear_path(
@@ -390,6 +395,16 @@ def plan_path_optimized(
     trust_delta = float(max(1e-6, float(trust_scale) * max(mean_step0, 1e-6)))
 
     opt = torch.optim.Adam([q], lr=float(opt_lr))
+    obs_center_t = None
+    obs_rad = float(max(0.0, obstacle_radius))
+    obs_margin = float(max(0.0, obstacle_margin))
+    obs_weight = float(max(0.0, lam_obstacle))
+    if obstacle_center_xy is not None and q.shape[1] >= 2 and (obs_rad > 0.0) and (obs_weight > 0.0):
+        obs_center_t = torch.tensor(
+            [float(obstacle_center_xy[0]), float(obstacle_center_xy[1])],
+            device=device,
+            dtype=torch.float32,
+        ).reshape(1, 2)
     for _ in range(int(opt_steps)):
         q_prev = q.detach().clone()
         opt.zero_grad(set_to_none=True)
@@ -404,10 +419,22 @@ def plan_path_optimized(
             loss_smooth = (dv ** 2).mean()
         else:
             loss_smooth = torch.tensor(0.0, device=q.device)
+        if obs_center_t is not None:
+            q_obs = q[1:-1, :] if (bool(obstacle_exclude_endpoints) and q.shape[0] > 2) else q
+            if q_obs.shape[0] > 0:
+                dxy = q_obs[:, :2] - obs_center_t
+                dist = torch.sqrt(torch.sum(dxy * dxy, dim=1) + 1e-12)
+                penetration = torch.relu((obs_rad + obs_margin) - dist)
+                loss_obs = (penetration ** 2).mean()
+            else:
+                loss_obs = torch.tensor(0.0, device=q.device)
+        else:
+            loss_obs = torch.tensor(0.0, device=q.device)
         loss = (
             float(lam_manifold) * loss_man
             + float(lam_smooth) * loss_smooth
             + float(lam_len) * loss_len
+            + float(obs_weight) * loss_obs
         )
         loss.backward()
         opt.step()
@@ -469,6 +496,31 @@ def _planner_float(cfg: Any, key: str, default: float) -> float:
         except Exception:
             return float(default)
     return float(default)
+
+
+def _planner_bool(cfg: Any, key: str, default: bool) -> bool:
+    pln = getattr(cfg, "planner", None)
+    if isinstance(pln, dict) and key in pln:
+        try:
+            return bool(pln[key])
+        except Exception:
+            return bool(default)
+    return bool(default)
+
+
+def _planner_center_xy(cfg: Any) -> tuple[float, float] | None:
+    pln = getattr(cfg, "planner", None)
+    if not isinstance(pln, dict):
+        return None
+    if "obstacle_center_xy" not in pln:
+        return None
+    v = pln.get("obstacle_center_xy")
+    try:
+        if isinstance(v, (list, tuple)) and len(v) >= 2:
+            return float(v[0]), float(v[1])
+    except Exception:
+        return None
+    return None
 
 
 def _get_ur5_planner_checker() -> dict[str, Any] | None:
@@ -794,6 +846,12 @@ def plan_path(
             periodic=bool(periodic),
         )
     if p == "traj_opt":
+        obs_enabled = _planner_bool(cfg, "obstacle_enable", False)
+        obs_center = _planner_center_xy(cfg) if obs_enabled else None
+        obs_radius = _planner_float(cfg, "obstacle_radius", 0.0) if obs_enabled else 0.0
+        obs_margin = _planner_float(cfg, "obstacle_margin", 0.0) if obs_enabled else 0.0
+        obs_weight = _planner_float(cfg, "lam_obstacle", 0.0) if obs_enabled else 0.0
+        obs_excl_ep = _planner_bool(cfg, "obstacle_exclude_endpoints", True)
         return plan_path_optimized(
             model,
             x_start,
@@ -808,6 +866,11 @@ def plan_path(
             trust_scale=float(_cfg_val(cfg, ["planner.trust_scale"], 0.8)),
             periodic=bool(periodic),
             init_path=init_path,
+            obstacle_center_xy=obs_center,
+            obstacle_radius=float(obs_radius),
+            obstacle_margin=float(obs_margin),
+            lam_obstacle=float(obs_weight),
+            obstacle_exclude_endpoints=bool(obs_excl_ep),
         )
     raise ValueError(f"unknown planner_name '{planner_name}'")
 
@@ -826,32 +889,33 @@ def _plot_planar_arm_planning(
     cfg: Any,
     render_pybullet: bool = True,
 ) -> list[np.ndarray]:
-    if name == "2d_planar_arm_line_n2":
+    base_name = str(name[:-5] if str(name).endswith("_traj") else name)
+    if base_name == "2d_planar_arm_line_n2":
         lengths = [1.0, 0.8]
         y_line = 0.3
         is_spatial = False
         use_pybullet_n6 = False
-    elif name == "3d_planar_arm_line_n3":
+    elif base_name == "3d_planar_arm_line_n3":
         lengths = [1.0, 0.8, 0.6]
         y_line = 0.35
         is_spatial = False
         use_pybullet_n6 = False
-    elif name == "3d_spatial_arm_plane_n3":
+    elif base_name == "3d_spatial_arm_plane_n3":
         lengths = [1.0, 0.8]
         y_line = 0.35  # here means z-plane value
         is_spatial = True
         use_pybullet_n6 = False
-    elif name in ("3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
+    elif base_name in ("3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
         lengths = [1.0, 0.8]
         y_line = None
         is_spatial = True
         use_pybullet_n6 = False
-    elif name == "6d_spatial_arm_up_n6":
+    elif base_name == "6d_spatial_arm_up_n6":
         lengths = list(UR5_LINK_LENGTHS)
         y_line = None
         is_spatial = True
         use_pybullet_n6 = True
-    elif name == "6d_spatial_arm_up_n6_py":
+    elif base_name == "6d_spatial_arm_up_n6_py":
         lengths = list(UR5_LINK_LENGTHS)
         y_line = None
         is_spatial = True
@@ -861,7 +925,7 @@ def _plot_planar_arm_planning(
 
     # Sample start/goal from a denser manifold candidate set, then enforce workspace distance.
     try:
-        x_dense, grid_dense = generate_dataset(name, cfg)
+        x_dense, grid_dense = generate_dataset(base_name, cfg)
         cand = grid_dense if (grid_dense is not None and len(grid_dense) >= 2) else x_dense
         if cand.shape[1] != x_train.shape[1]:
             cand = x_train
@@ -1060,7 +1124,7 @@ def _plot_planar_arm_planning(
             emb_init = (q_init_unw - mu) @ basis
             emb_s = emb_unw[0:1]
             emb_g = emb_unw[-1:]
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+            if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
                 ax1.plot(emb_init[:, 0], emb_init[:, 1], emb_init[:, 2], "--", color="gray", lw=1.1, alpha=0.85, label="init (pre-proj)")
             ax1.plot(emb_unw[:, 0], emb_unw[:, 1], emb_unw[:, 2], "-", color="#0ea5e9", lw=1.2, alpha=0.85, label="planned")
             ax1.scatter([emb_s[0, 0]], [emb_s[0, 1]], [emb_s[0, 2]], c="blue", s=20)
@@ -1097,7 +1161,7 @@ def _plot_planar_arm_planning(
             ax2.set_title(f"Workspace #{row+1}", fontsize=10)
         else:
             ax2 = fig.add_subplot(3, 2, right_idx, projection="3d")
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+            if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
                 ax2.plot(ee_init[:, 0], ee_init[:, 1], ee_init[:, 2], "--", color="gray", lw=1.2, alpha=0.85, label="init ee")
                 ax2.plot(ee[:, 0], ee[:, 1], ee[:, 2], "-", color="green", lw=1.8, label="planned ee")
             else:
@@ -1120,7 +1184,7 @@ def _plot_planar_arm_planning(
                 ax2.plot_surface(XX, YY, ZZ, alpha=0.12, color="orange", linewidth=0, shade=False)
             ax2.scatter([ee[0, 0]], [ee[0, 1]], [ee[0, 2]], c="blue", s=26)
             ax2.scatter([ee[-1, 0]], [ee[-1, 1]], [ee[-1, 2]], c="red", s=26)
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py") and joints.shape[1] >= 2:
+            if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py") and joints.shape[1] >= 2:
                 # Visualize true end-effector tool orientation.
                 d = spatial_tool_axis_n6(q_path.astype(np.float32), use_pybullet=use_pybullet_n6)
                 d0 = spatial_tool_axis_n6(q_init.astype(np.float32), use_pybullet=use_pybullet_n6)
@@ -1143,7 +1207,7 @@ def _plot_planar_arm_planning(
             ax2.set_ylabel("y")
             ax2.set_zlabel("z")
             ax2.set_title(f"Workspace 3D #{row+1}", fontsize=10)
-            if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+            if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
                 ax2.legend(loc="best", fontsize=8)
 
     fig.suptitle(f"{name}: planning on learned manifold (3 cases)")
@@ -1153,7 +1217,7 @@ def _plot_planar_arm_planning(
         plt.show()
     plt.close(fig)
     print(f"saved: {out_path}")
-    if render_pybullet and name == "6d_spatial_arm_up_n6" and bool(_pln(cfg, "pybullet_render", False)):
+    if render_pybullet and base_name == "6d_spatial_arm_up_n6" and bool(_pln(cfg, "pybullet_render", False)):
         _render_ur5_pybullet_trajectories(q_paths_render, cfg)
 
     # Slow animation of workspace motion.
@@ -1191,7 +1255,7 @@ def _plot_planar_arm_planning(
         ori_line = None
         ori = None
         ori_scale = 0.20
-        if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
             ori = spatial_tool_axis_n6(q_path.astype(np.float32), use_pybullet=use_pybullet_n6)
             ori_line, = ax.plot([], [], [], "-", color="#f59e0b", lw=2.2, alpha=0.95)
 

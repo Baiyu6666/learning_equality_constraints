@@ -115,8 +115,8 @@ This document explains the unified evaluation pipeline and every metric produced
 
 - `zero_eps_quantile`: quantile for `eval_eps_used`
 - `eval_tau_ratio`: controls near/far threshold `tau` for recall/FP/precision
-- `eval_chamfer_n_gt`: GT sample count for chamfer
-- `eval_chamfer_n_seed`: seed count projected to get learned samples
+- `eval_gt_n_grid`: GT manifold grid size used by evaluator (for projection/chamfer reference)
+- `eval_proj_n_points`: number of projected evaluation seed points
 - `eval_chamfer_near_ratio`, `eval_chamfer_near_noise_std_ratio`: near-manifold seed sampling mix
 - `eval_pad_ratio`, `eval_min_axis_span_ratio`: eval bounding box expansion from training data
 

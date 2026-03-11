@@ -27,6 +27,7 @@ TRAJ_3D_CODIM1_BASES = {
     "3d_torus_surface",
     "3d_planar_arm_line_n3",
     "3d_spatial_arm_plane_n3",
+    "3d_spatial_arm_ellip_n3",
 }
 
 
@@ -701,7 +702,8 @@ def _workspace_sine_surface_pose_n6_traj(cfg) -> Tuple[np.ndarray, np.ndarray]:
     xyz_grid = grid[:, :3].astype(np.float32)
 
     n_train = max(1, int(cfg.n_train))
-    traj_count = int(max(4, min(96, getattr(cfg, "traj_count", max(12, n_train // 64)))))
+    traj_count_raw = int(getattr(cfg, "traj_count", max(12, n_train // 64)))
+    traj_count = int(max(1, min(n_train, traj_count_raw)))
     traj_len = int(max(8, getattr(cfg, "traj_len", int(math.ceil(n_train / max(traj_count, 1))))))
     traj_knn = int(max(4, getattr(cfg, "traj_knn", 20)))
     xyz_train = _traj_points_from_grid(
@@ -753,6 +755,43 @@ def _workspace_sine_surface_pose_n6_traj(cfg) -> Tuple[np.ndarray, np.ndarray]:
     return x_train, grid.astype(np.float32)
 
 
+def _dual_arm_pose_yoffset_samex_plane_sameori_n12(cfg) -> Tuple[np.ndarray, np.ndarray]:
+    # 12D dual-arm workspace pose:
+    # [x1, y1, z1, r1, p1, y1aw, x2, y2, z2, r2, p2, y2aw]
+    # Constraints:
+    # 1) x1 == x2
+    # 2) y2 - y1 == const
+    # 3) z1 == z2 == const plane height
+    # 4) (roll, pitch, yaw)_1 == (roll, pitch, yaw)_2
+    y_offset = float(getattr(cfg, "dual_arm_y_offset", 1.0))
+    z_plane = float(getattr(cfg, "dual_arm_z_plane", 0.25))
+    x_range = float(getattr(cfg, "dual_arm_x_range", 1.8))
+    y_center_range = float(getattr(cfg, "dual_arm_y_center_range", 1.2))
+    pitch_limit = float(getattr(cfg, "dual_arm_pitch_limit", 1.2))
+
+    def _sample(n: int, seed_offset: int) -> np.ndarray:
+        rng = np.random.default_rng(int(cfg.seed) + seed_offset)
+        x_common = rng.uniform(-x_range, x_range, size=(n,)).astype(np.float32)
+        y_center = rng.uniform(-y_center_range, y_center_range, size=(n,)).astype(np.float32)
+        y1 = (y_center - 0.5 * y_offset).astype(np.float32)
+        y2 = (y_center + 0.5 * y_offset).astype(np.float32)
+        z1 = np.full((n,), z_plane, dtype=np.float32)
+        z2 = np.full((n,), z_plane, dtype=np.float32)
+
+        roll = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float32)
+        pitch = rng.uniform(-pitch_limit, pitch_limit, size=(n,)).astype(np.float32)
+        yaw = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float32)
+        rpy = _wrap_to_pi(np.stack([roll, pitch, yaw], axis=1).astype(np.float32))
+
+        pose_1 = np.concatenate([x_common[:, None], y1[:, None], z1[:, None], rpy], axis=1).astype(np.float32)
+        pose_2 = np.concatenate([x_common[:, None], y2[:, None], z2[:, None], rpy], axis=1).astype(np.float32)
+        return np.concatenate([pose_1, pose_2], axis=1).astype(np.float32)
+
+    x_train = _sample(max(1, int(cfg.n_train)), seed_offset=0)
+    grid = _sample(max(1, int(cfg.n_grid)), seed_offset=1)
+    return x_train, grid
+
+
 def _knn_indices(points: np.ndarray, k: int) -> np.ndarray:
     pts = points.astype(np.float32)
     n = int(pts.shape[0])
@@ -779,6 +818,7 @@ def _traj_points_from_grid(
     traj_count: int,
     traj_len: int,
     traj_knn: int,
+    diverse_starts: bool = False,
 ) -> np.ndarray:
     g = np.asarray(grid, dtype=np.float32)
     if len(g) == 0:
@@ -791,28 +831,60 @@ def _traj_points_from_grid(
     knn = _knn_indices(g, k=max(2, int(traj_knn)))
 
     eps = 1e-8
-    # Choose diverse starts to improve global coverage.
     starts: list[int] = []
-    if len(g) > 0:
-        starts.append(int(rng.integers(0, len(g))))
-    while len(starts) < n_traj:
-        cand = int(rng.integers(0, len(g)))
-        if cand in starts:
-            continue
-        if len(starts) == 0:
-            starts.append(cand)
-            continue
-        d2 = np.sum((g[np.array(starts)] - g[cand : cand + 1]) ** 2, axis=1)
-        # Keep starts reasonably far apart.
-        if float(np.min(d2)) > 0.03 * float(np.mean(np.var(g, axis=0) + eps)):
-            starts.append(cand)
-        elif float(rng.uniform()) < 0.08:
-            starts.append(cand)
+    if not diverse_starts:
+        # Choose diverse starts to improve global coverage.
+        if len(g) > 0:
+            starts.append(int(rng.integers(0, len(g))))
+        while len(starts) < n_traj:
+            cand = int(rng.integers(0, len(g)))
+            if cand in starts:
+                continue
+            if len(starts) == 0:
+                starts.append(cand)
+                continue
+            d2 = np.sum((g[np.array(starts)] - g[cand : cand + 1]) ** 2, axis=1)
+            # Keep starts reasonably far apart.
+            if float(np.min(d2)) > 0.03 * float(np.mean(np.var(g, axis=0) + eps)):
+                starts.append(cand)
+            elif float(rng.uniform()) < 0.08:
+                starts.append(cand)
 
     visit = np.zeros((len(g),), dtype=np.int32)
+
+    def _pick_dynamic_start(used_starts: list[int]) -> int:
+        pool = int(min(len(g), max(256, 32 * n_traj)))
+        if len(g) <= pool:
+            cand_idx = np.arange(len(g), dtype=np.int64)
+        else:
+            cand_idx = rng.choice(len(g), size=pool, replace=False).astype(np.int64)
+        if len(cand_idx) == 0:
+            return int(rng.integers(0, len(g)))
+        if len(used_starts) == 0:
+            v = visit[cand_idx].astype(np.float32)
+            min_v = float(np.min(v))
+            good = cand_idx[v <= min_v + 1e-6]
+            return int(good[int(rng.integers(0, len(good)))])
+
+        d2 = np.sum(
+            (g[cand_idx][:, None, :] - g[np.array(used_starts, dtype=np.int64)][None, :, :]) ** 2,
+            axis=2,
+        )
+        d_score = np.min(d2, axis=1).astype(np.float32)
+        v = visit[cand_idx].astype(np.float32)
+        v_score = (np.max(v) - v) if len(v) > 0 else np.zeros_like(d_score)
+        d_norm = d_score / (float(np.max(d_score)) + 1e-8)
+        v_norm = v_score / (float(np.max(v_score)) + 1e-8)
+        score = d_norm + 0.70 * v_norm
+        return int(cand_idx[int(np.argmax(score))])
     seq = []
+    empty_neighbor_warn_count = 0
     for ti in range(n_traj):
-        cur = int(starts[ti % len(starts)])
+        if diverse_starts:
+            cur = _pick_dynamic_start(starts)
+            starts.append(int(cur))
+        else:
+            cur = int(starts[ti % len(starts)])
         prev_idx = -1
         prev_dir = None
         for _step in range(t_len):
@@ -823,6 +895,13 @@ def _traj_points_from_grid(
             if prev_idx >= 0:
                 nbr = nbr[nbr != prev_idx]
             if len(nbr) == 0:
+                empty_neighbor_warn_count += 1
+                if empty_neighbor_warn_count <= 10:
+                    print(
+                        "[warn][traj] empty neighbor set after filtering; "
+                        f"traj={ti} step={_step} cur={cur} prev={prev_idx} "
+                        f"n_grid={len(g)} traj_knn={int(traj_knn)}"
+                    )
                 cur = int(rng.integers(0, len(g)))
                 prev_idx = -1
                 prev_dir = None
@@ -878,10 +957,18 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         base = str(name)[: -len("_traj")]
         if base in TRAJ_3D_CODIM1_BASES:
             cfg_base = SimpleNamespace(**vars(cfg))
+            n_train = max(1, int(getattr(cfg, "n_train", 1)))
+            cfg_base.n_grid = int(
+                max(
+                    int(getattr(cfg, "n_grid", 1)),
+                    int(getattr(cfg, "traj_grid_min", 1)),
+                )
+            )
             # Keep dense reference manifold for eval; train set becomes trajectory samples.
             x_base, grid = generate_dataset(base, cfg_base)
             n_train = max(1, int(getattr(cfg, "n_train", len(x_base))))
-            traj_count = int(max(4, min(96, getattr(cfg, "traj_count", max(12, n_train // 24)))))
+            traj_count_raw = int(getattr(cfg, "traj_count", max(12, n_train // 24)))
+            traj_count = int(max(1, min(n_train, traj_count_raw)))
             traj_len = int(max(8, getattr(cfg, "traj_len", int(math.ceil(n_train / max(traj_count, 1))))))
             traj_knn = int(max(4, getattr(cfg, "traj_knn", 16)))
             x_traj = _traj_points_from_grid(
@@ -891,6 +978,7 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
                 traj_count=traj_count,
                 traj_len=traj_len,
                 traj_knn=traj_knn,
+                diverse_starts=(base == "3d_spatial_arm_ellip_n3"),
             )
             return x_traj.astype(np.float32), grid.astype(np.float32)
 
@@ -1015,6 +1103,8 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         return _workspace_sine_surface_pose_n6(cfg)
     if name == "6d_workspace_sine_surface_pose_traj":
         return _workspace_sine_surface_pose_n6_traj(cfg)
+    if name == "12d_dual_arm_pose_yoffset_samex_plane_sameori":
+        return _dual_arm_pose_yoffset_samex_plane_sameori_n12(cfg)
     if name == "2d_noisy_sine":
         t = np.random.uniform(-math.pi, math.pi, size=(cfg.n_train, 1))
         y = np.sin(t) + 0.1 * np.random.randn(cfg.n_train, 1)

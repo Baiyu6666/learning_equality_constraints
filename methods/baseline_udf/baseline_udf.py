@@ -56,7 +56,7 @@ class Config:
     device: str = "auto"  # "auto", "cpu", or "cuda"
 
     n_train: int = 512  # training points per dataset (dataset-layer config should override)
-    n_grid: int = 4096  # grid points for GT manifold
+    traj_gene_n_grid: int = 4096  # grid points used for trajectory/data generation
 
     # KNN sizes
     knn_norm_estimation_ratio: float = 0.08  # ratio for normal-estimation knn points
@@ -146,6 +146,25 @@ def pairwise_sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return d2
 
 
+def _knn_indices(x: np.ndarray, k: int) -> np.ndarray:
+    n = int(x.shape[0])
+    if n <= 1:
+        return np.zeros((n, 0), dtype=np.int64)
+    k_eff = max(1, min(int(k), n - 1))
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+
+        tree = cKDTree(np.asarray(x, dtype=np.float64))
+        idx = tree.query(np.asarray(x, dtype=np.float64), k=k_eff + 1)[1]
+        idx = np.asarray(idx, dtype=np.int64)
+        if idx.ndim == 1:
+            idx = idx[:, None]
+        return idx[:, 1:]
+    except Exception:
+        d2 = pairwise_sqdist(x, x)
+        return np.argsort(d2, axis=1)[:, 1 : k_eff + 1].astype(np.int64)
+
+
 def _as_sigmas(sigmas: Tuple[float, ...] | float) -> np.ndarray:
     if isinstance(sigmas, (int, float)):
         return np.array([float(sigmas)], dtype=np.float32)
@@ -189,10 +208,10 @@ def knn_normals(
     x: np.ndarray, k: int, cfg: Config | None = None
 ) -> np.ndarray:
     n, d = x.shape
-    d2 = pairwise_sqdist(x, x)
+    nbr_idx_all = _knn_indices(x, k)
     normals = np.zeros((n, d), dtype=np.float32)
     for i in range(n):
-        nbr_idx = np.argsort(d2[i])[1 : k + 1]
+        nbr_idx = nbr_idx_all[i]
         nbrs = x[nbr_idx]
         _, evecs, _, _ = _local_pca_frame(nbrs, x[i], cfg=cfg)
         nvec = evecs[:, 0]
@@ -209,10 +228,10 @@ def knn_normal_bases(
 ) -> np.ndarray:
     n, d = x.shape
     c = max(1, min(int(codim), int(d)))
-    d2 = pairwise_sqdist(x, x)
+    nbr_idx_all = _knn_indices(x, k)
     bases = np.zeros((n, d, c), dtype=np.float32)
     for i in range(n):
-        nbr_idx = np.argsort(d2[i])[1 : k + 1]
+        nbr_idx = nbr_idx_all[i]
         nbrs = x[nbr_idx]
         _, evecs, _, _ = _local_pca_frame(nbrs, x[i], cfg=cfg)
         b = evecs[:, :c]
@@ -274,11 +293,24 @@ def sample_off_manifold(
 def filter_off_by_knn(
     x_off: torch.Tensor, x_ref: torch.Tensor, idx_on: torch.Tensor, knn_off_data_filter_points: int
 ) -> torch.Tensor:
-    d2 = torch.cdist(x_off, x_ref) ** 2
-    nn_idx = torch.topk(d2, knn_off_data_filter_points, largest=False).indices
+    n_off = int(x_off.shape[0])
+    n_ref = int(x_ref.shape[0])
+    if n_off <= 0 or n_ref <= 0:
+        return torch.zeros((n_off,), dtype=torch.bool, device=x_off.device)
+    k = max(1, min(int(knn_off_data_filter_points), n_ref))
     idx_on = idx_on.view(-1, 1)
-    mask = (nn_idx == idx_on).any(dim=1)
-    return mask
+    # Chunk pairwise distance to avoid OOM on large-N datasets.
+    # Peak temporary tensor ~ chunk_size * n_ref.
+    max_elems = 8_000_000
+    chunk_size = max(1, min(n_off, max_elems // max(1, n_ref)))
+    out_mask: list[torch.Tensor] = []
+    for start in range(0, n_off, chunk_size):
+        end = min(n_off, start + chunk_size)
+        d2 = torch.cdist(x_off[start:end], x_ref) ** 2
+        nn_idx = torch.topk(d2, k, largest=False).indices
+        mask = (nn_idx == idx_on[start:end]).any(dim=1)
+        out_mask.append(mask)
+    return torch.cat(out_mask, dim=0)
 
 
 def precompute_off_bank(

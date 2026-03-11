@@ -1,0 +1,11 @@
+{
+  "n_train": 4096,
+  "traj_gene_n_grid": 8192,
+  "off_bank_size": 64,
+  "off_bank_oversample": 12,
+  "dual_arm_y_offset": 1.0,
+  "dual_arm_z_plane": 0.25,
+  "dual_arm_x_range": 1.8,
+  "dual_arm_y_center_range": 1.2,
+  "dual_arm_pitch_limit": 1.2
+}

@@ -6,6 +6,7 @@ import csv
 import glob
 import json
 import os
+import shutil
 import time
 from collections import defaultdict
 from typing import Any
@@ -42,7 +43,59 @@ def _resolve_outdir(outdir: str) -> str:
     return os.path.join(_PROJECT_ROOT, p)
 
 
-def _log_dataset_plots_to_wandb(*, outdir: str, method: str, dataset: str, step: int | None = None) -> None:
+def _clear_directory(path: str) -> None:
+    for name in os.listdir(path):
+        p = os.path.join(path, name)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p)
+        else:
+            os.remove(p)
+
+
+def _prepare_outdir(path: str, *, clearn_dir: bool, resume: bool) -> None:
+    if os.path.exists(path) and not os.path.isdir(path):
+        raise ValueError(f"outdir exists but is not a directory: {path}")
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        return
+    has_existing = any(True for _ in os.scandir(path))
+    if not has_existing:
+        return
+    if clearn_dir:
+        print(f"[clearn_dir] outdir is non-empty: {path}")
+        ans = input("[confirm] type 1 to clear this directory and continue: ").strip()
+        if ans != "1":
+            raise RuntimeError("clearn_dir cancelled by user (did not input 1).")
+        print(f"[clearn_dir] clearing existing outdir: {path}")
+        _clear_directory(path)
+        return
+    if resume:
+        print(f"[resume] using existing outdir for incremental runs: {path}")
+        return
+    raise ValueError(
+        "outdir already exists and is not empty; refusing to mix old/new results. "
+        "Use --resume for incremental runs, --clearn_dir (or -clearn_dir) to clear it first, "
+        "or choose a new --outdir."
+    )
+
+
+def _infer_dataset_from_plot_basename(basename_no_ext: str, datasets: list[str]) -> str | None:
+    # Disambiguate prefixes like "..._py" vs "..._py_traj" by longest-prefix match.
+    matches = [ds for ds in datasets if basename_no_ext.startswith(f"{ds}_")]
+    if not matches:
+        return None
+    matches.sort(key=len, reverse=True)
+    return str(matches[0])
+
+
+def _log_dataset_plots_to_wandb(
+    *,
+    outdir: str,
+    method: str,
+    dataset: str,
+    all_datasets: list[str],
+    step: int | None = None,
+) -> None:
     method_dir = os.path.join(outdir, method)
     if not os.path.isdir(method_dir):
         return
@@ -58,6 +111,9 @@ def _log_dataset_plots_to_wandb(*, outdir: str, method: str, dataset: str, step:
         return
     for p in sorted(set(plot_paths)):
         key = os.path.splitext(os.path.basename(p))[0]
+        owner_ds = _infer_dataset_from_plot_basename(key, all_datasets)
+        if owner_ds != str(dataset):
+            continue
         try:
             payload = {f"{dataset}/{method}/plot/{key}": wandb.Image(p)}
             if step is None:
@@ -140,6 +196,8 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--datasets", default="6d_workspace_sine_surface_pose", help="comma-separated datasets")
     p.add_argument("--seeds", default="10", help="comma-separated seeds; empty means no seed override")
     p.add_argument("--outdir", default="outputs_unified")
+    p.add_argument("-clearn_dir", "--clearn_dir", action="store_true", help="if outdir is non-empty, ask once for confirmation (type 1) then clear it")
+    p.add_argument("-resume", "--resume", action="store_true", help="incrementally append to an existing outdir and skip completed runs")
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
 
@@ -199,6 +257,93 @@ def _append_jsonl(path: str, row: dict[str, Any]) -> None:
         f.flush()
 
 
+def _seed_key(v: Any) -> str:
+    return str(v).strip()
+
+
+def _run_key(method: Any, dataset: Any, seed: Any) -> tuple[str, str, str]:
+    return (str(method).strip(), str(dataset).strip(), _seed_key(seed))
+
+
+def _load_existing_results(outdir: str) -> list[dict[str, Any]]:
+    per_run = os.path.join(outdir, "per_run_metrics.jsonl")
+    by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+    if os.path.isfile(per_run):
+        with open(per_run, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                except Exception:
+                    continue
+                k = _run_key(row.get("method", ""), row.get("dataset", ""), row.get("seed", ""))
+                by_key[k] = row
+        return list(by_key.values())
+
+    summary = os.path.join(outdir, "summary_metrics.json")
+    if not os.path.isfile(summary):
+        return []
+    try:
+        with open(summary, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return []
+    if not isinstance(data, list):
+        return []
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        k = _run_key(row.get("method", ""), row.get("dataset", ""), row.get("seed", ""))
+        by_key[k] = {
+            "method": row.get("method", ""),
+            "dataset": row.get("dataset", ""),
+            "seed": row.get("seed", ""),
+            "metrics": row.get("metrics", {}),
+            "config": row.get("config", {}),
+            "loaded_config_paths": row.get("loaded_config_paths", []),
+        }
+    return list(by_key.values())
+
+
+def _print_progress_snapshot(
+    *,
+    methods: list[str],
+    datasets: list[str],
+    seed_values: list[int | None],
+    done_per_method: dict[str, int],
+    completed_keys: set[tuple[str, str, str]],
+    expected_keys: set[tuple[str, str, str]],
+) -> None:
+    # Method-level progress across all datasets/seeds.
+    method_parts: list[str] = []
+    total_per_method = max(1, len(datasets) * len(seed_values))
+    for m in methods:
+        method_parts.append(f"{m} {int(done_per_method.get(m, 0))}/{total_per_method}")
+    print("[progress][methods] " + " | ".join(method_parts))
+
+    # Dataset-level progress:
+    # - runs: completed (method,dataset,seed) over total methods*seeds
+    # - seeds: unique completed seeds over total seeds
+    n_seed_total = max(1, len(seed_values))
+    n_run_total_per_ds = max(1, len(methods) * len(seed_values))
+    for ds in datasets:
+        runs_done = 0
+        seeds_done: set[str] = set()
+        for m in methods:
+            for s in seed_values:
+                k = _run_key(m, ds, s)
+                if k not in expected_keys:
+                    continue
+                if k in completed_keys:
+                    runs_done += 1
+                    seeds_done.add(_seed_key(s))
+        print(
+            f"[progress][dataset] {ds}: seeds {len(seeds_done)}/{n_seed_total} | runs {runs_done}/{n_run_total_per_ds}"
+        )
+
+
 def main() -> None:
     args = _build_parser().parse_args()
     config_root = _resolve_config_root(str(args.config_root))
@@ -220,11 +365,22 @@ def main() -> None:
         seed_values = [int(s) for s in seeds]
     else:
         seed_values = [None]
+    expected_keys: set[tuple[str, str, str]] = {
+        _run_key(m, ds, s) for m in methods for ds in datasets for s in seed_values
+    }
 
-    os.makedirs(outdir, exist_ok=True)
+    if bool(args.clearn_dir) and bool(args.resume):
+        raise ValueError("--clearn_dir and --resume cannot be used together")
+    _prepare_outdir(outdir, clearn_dir=bool(args.clearn_dir), resume=bool(args.resume))
     effective_overrides = _with_default_non_gif_overrides(args.override)
     partial_jsonl = os.path.join(outdir, "per_run_metrics.jsonl")
     partial_summary = os.path.join(outdir, "summary_metrics.partial.json")
+    existing_rows: list[dict[str, Any]] = _load_existing_results(outdir) if bool(args.resume) else []
+    completed_keys: set[tuple[str, str, str]] = {
+        _run_key(r.get("method", ""), r.get("dataset", ""), r.get("seed", "")) for r in existing_rows
+    }
+    if existing_rows:
+        print(f"[resume] loaded existing runs: {len(existing_rows)}")
 
     wb_run = None
     if args.wandb_enable:
@@ -245,12 +401,36 @@ def main() -> None:
             )
 
     all_results: list[dict[str, Any]] = []
+    for r in existing_rows:
+        all_results.append(
+            {
+                "method": r.get("method", ""),
+                "dataset": r.get("dataset", ""),
+                "seed": r.get("seed", ""),
+                "metrics": r.get("metrics", {}) if isinstance(r.get("metrics", {}), dict) else {},
+                "config": r.get("config", {}) if isinstance(r.get("config", {}), dict) else {},
+                "loaded_config_paths": r.get("loaded_config_paths", []),
+            }
+        )
     step = 0
     total_per_method = {m: len(datasets) * len(seed_values) for m in methods}
     done_per_method = {m: 0 for m in methods}
     for method in methods:
         for dataset in datasets:
             for seed in seed_values:
+                key = _run_key(method, dataset, seed)
+                if key in completed_keys:
+                    print(f"[skip] method={method} dataset={dataset} seed={seed} already exists (resume)")
+                    done_per_method[method] += 1
+                    _print_progress_snapshot(
+                        methods=methods,
+                        datasets=datasets,
+                        seed_values=seed_values,
+                        done_per_method=done_per_method,
+                        completed_keys=completed_keys,
+                        expected_keys=expected_keys,
+                    )
+                    continue
                 print(f"[run] method={method} dataset={dataset} seed={seed}")
                 result, loaded = run_one(
                     method=method,
@@ -263,6 +443,7 @@ def main() -> None:
                 result["seed"] = seed
                 result["loaded_config_paths"] = loaded
                 all_results.append(result)
+                completed_keys.add(key)
 
                 # Persist each finished run immediately so interrupted benchmarks
                 # can still be recovered/aggregated.
@@ -287,9 +468,13 @@ def main() -> None:
                     f"FPrate={m.get('pred_FPrate', float('nan')):.6f}"
                 )
                 done_per_method[method] += 1
-                print(
-                    f"[progress] method={method} "
-                    f"{done_per_method[method]}/{total_per_method[method]} completed"
+                _print_progress_snapshot(
+                    methods=methods,
+                    datasets=datasets,
+                    seed_values=seed_values,
+                    done_per_method=done_per_method,
+                    completed_keys=completed_keys,
+                    expected_keys=expected_keys,
                 )
                 if wb_run is not None:
                     step += 1
@@ -306,6 +491,7 @@ def main() -> None:
                         outdir=outdir,
                         method=str(method),
                         dataset=str(dataset),
+                        all_datasets=[str(d) for d in datasets],
                         step=step,
                     )
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any, Callable
 from types import SimpleNamespace
+import os
+import xml.etree.ElementTree as ET
 
 import numpy as np
 import torch
@@ -13,11 +15,11 @@ DEFAULT_EVAL_CFG: dict[str, Any] = {
     "eval_pad_ratio": 0.6,
     "eval_min_axis_span_ratio": 0.08,
     "zero_eps_quantile": 90.0,
-    "eval_chamfer_n_gt": 1024,
-    "eval_chamfer_n_seed": 4096,
+    "eval_proj_n_points": 4096,
+    "eval_gt_n_grid": 8128,
     "eval_chamfer_near_ratio": 0.75,
     "eval_chamfer_near_noise_std_ratio": 0.1,
-    "eval_tau_ratio": 0.015,
+    "eval_tau_ratio": 0.02,
 }
 EVALUATOR_FIXED_SEED = 2026
 
@@ -53,6 +55,7 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "6d_spatial_arm_up_n6_py": {},
     "6d_workspace_sine_surface_pose": {},
     "6d_workspace_sine_surface_pose_traj": {},
+    "12d_dual_arm_pose_yoffset_samex_plane_sameori": {},
 }
 
 
@@ -63,6 +66,7 @@ def _fixed_rng() -> np.random.Generator:
 
 
 _GT_GRID_CACHE: dict[tuple[str, int], np.ndarray] = {}
+_UR5_LIMITS_CACHE: tuple[np.ndarray, np.ndarray] | None = None
 
 
 def resolve_gt_grid(
@@ -71,8 +75,7 @@ def resolve_gt_grid(
     x_train: np.ndarray | None = None,
 ) -> np.ndarray:
     cfg_ds = SimpleNamespace(**vars(cfg)) if hasattr(cfg, "__dict__") else SimpleNamespace()
-    if not hasattr(cfg_ds, "n_grid"):
-        cfg_ds.n_grid = int(getattr(cfg, "eval_chamfer_n_seed", 4096))
+    cfg_ds.n_grid = int(getattr(cfg, "eval_gt_n_grid", DEFAULT_EVAL_CFG["eval_gt_n_grid"]))
     if not hasattr(cfg_ds, "n_train"):
         cfg_ds.n_train = int(max(64, getattr(cfg_ds, "n_grid", 4096)))
     if not hasattr(cfg_ds, "seed"):
@@ -93,6 +96,8 @@ def resolve_gt_grid(
     name = str(dataset_name)
     if name.startswith("3d_0z_"):
         base = name[len("3d_0z_"):]
+        if base.endswith("_traj"):
+            base = base[: -len("_traj")]
         x2, grid2 = generate_dataset(base, cfg_ds)
         src = grid2 if grid2 is not None else x2
         out = lift_xy_to_3d_zero(src).astype(np.float32)
@@ -100,6 +105,8 @@ def resolve_gt_grid(
         return out
     if name.startswith("3d_vz_"):
         base = name[len("3d_vz_"):]
+        if base.endswith("_traj"):
+            base = base[: -len("_traj")]
         x2, grid2 = generate_dataset(base, cfg_ds)
         src = grid2 if grid2 is not None else x2
         out = lift_xy_to_3d_var(src, cfg_ds).astype(np.float32)
@@ -162,10 +169,18 @@ def _clip_points_to_eval_bounds(x: np.ndarray, x_train: np.ndarray, cfg: Any) ->
 def sample_eval_seed_points(
     x_train: np.ndarray,
     cfg: Any,
+    dataset_name: str | None = None,
 ) -> np.ndarray:
     rng = _fixed_rng()
-    n_seed = max(64, int(cfg.eval_chamfer_n_seed))
+    n_seed = max(64, int(getattr(cfg, "eval_proj_n_points", DEFAULT_EVAL_CFG["eval_proj_n_points"])))
     mins, maxs = eval_bounds_from_train(x_train, cfg)
+    if str(dataset_name or "").startswith("6d_spatial_arm_up_n6"):
+        lim = _ur5_joint_limits_from_urdf()
+        if lim is not None:
+            lo, hi = lim
+            if int(x_train.shape[1]) >= 6:
+                mins = lo.astype(np.float32)
+                maxs = hi.astype(np.float32)
     span = np.maximum(maxs - mins, 1e-6).astype(np.float32)
     near_ratio = float(np.clip(cfg.eval_chamfer_near_ratio, 0.0, 1.0))
     n_near = int(round(n_seed * near_ratio))
@@ -185,6 +200,48 @@ def sample_eval_seed_points(
     if not out:
         return rng.uniform(mins, maxs, size=(n_seed, len(mins))).astype(np.float32)
     return np.concatenate(out, axis=0).astype(np.float32)
+
+
+def _ur5_joint_limits_from_urdf() -> tuple[np.ndarray, np.ndarray] | None:
+    global _UR5_LIMITS_CACHE
+    if _UR5_LIMITS_CACHE is not None:
+        return _UR5_LIMITS_CACHE
+    try:
+        from datasets.ur5_pybullet_utils import resolve_ur5_kinematics_cfg
+
+        kin = resolve_ur5_kinematics_cfg({})
+        urdf_path = str(kin.get("urdf_path", "")).strip()
+        if (not urdf_path) or (not os.path.exists(urdf_path)):
+            return None
+        root = ET.parse(urdf_path).getroot()
+        lo_list: list[float] = []
+        hi_list: list[float] = []
+        for j in root.findall("joint"):
+            if str(j.attrib.get("type", "")).strip().lower() != "revolute":
+                continue
+            lim = j.find("limit")
+            if lim is None:
+                continue
+            try:
+                lo_j = float(lim.attrib.get("lower", "-3.141592653589793"))
+                hi_j = float(lim.attrib.get("upper", "3.141592653589793"))
+            except Exception:
+                continue
+            if (not np.isfinite(lo_j)) or (not np.isfinite(hi_j)) or (hi_j <= lo_j):
+                continue
+            lo_list.append(lo_j)
+            hi_list.append(hi_j)
+            if len(lo_list) >= 6:
+                break
+        if len(lo_list) < 6:
+            return None
+        _UR5_LIMITS_CACHE = (
+            np.asarray(lo_list[:6], dtype=np.float32),
+            np.asarray(hi_list[:6], dtype=np.float32),
+        )
+        return _UR5_LIMITS_CACHE
+    except Exception:
+        return None
 
 
 def compute_eps_stop(
@@ -269,6 +326,52 @@ def _workspace_pose_analytic_dist_embed(embed_xyz_zaxis: np.ndarray) -> np.ndarr
     return d
 
 
+def _dual_arm_pose_params(cfg: Any) -> tuple[float, float]:
+    y_offset = float(getattr(cfg, "dual_arm_y_offset", 1.0))
+    z_plane = float(getattr(cfg, "dual_arm_z_plane", 0.25))
+    return y_offset, z_plane
+
+
+def _dual_arm_pose_embed_raw(x_raw: np.ndarray) -> np.ndarray:
+    x = x_raw.astype(np.float32)
+
+    def _pose_embed(p: np.ndarray) -> np.ndarray:
+        pos = p[:, :3].astype(np.float32)
+        rpy = p[:, 3:6].astype(np.float32)
+        return np.concatenate([pos, np.cos(rpy), np.sin(rpy)], axis=1).astype(np.float32)
+
+    return np.concatenate([_pose_embed(x[:, :6]), _pose_embed(x[:, 6:12])], axis=1).astype(np.float32)
+
+
+def _dual_arm_pose_analytic_target_raw(x_raw: np.ndarray, cfg: Any) -> np.ndarray:
+    x = x_raw.astype(np.float32)
+    y_offset, z_plane = _dual_arm_pose_params(cfg)
+
+    x_common = (0.5 * (x[:, 0] + x[:, 6])).astype(np.float32)
+    y_center = (0.5 * (x[:, 1] + x[:, 7])).astype(np.float32)
+    y1 = (y_center - 0.5 * y_offset).astype(np.float32)
+    y2 = (y_center + 0.5 * y_offset).astype(np.float32)
+    z = np.full_like(x_common, z_plane, dtype=np.float32)
+
+    ang_1 = x[:, 3:6].astype(np.float32)
+    ang_2 = x[:, 9:12].astype(np.float32)
+    ang_shared = np.arctan2(np.sin(ang_1) + np.sin(ang_2), np.cos(ang_1) + np.cos(ang_2)).astype(np.float32)
+
+    pose_1 = np.concatenate([x_common[:, None], y1[:, None], z[:, None], ang_shared], axis=1).astype(np.float32)
+    pose_2 = np.concatenate([x_common[:, None], y2[:, None], z[:, None], ang_shared], axis=1).astype(np.float32)
+    return np.concatenate([pose_1, pose_2], axis=1).astype(np.float32)
+
+
+def _dual_arm_pose_analytic_target_embed(x_raw: np.ndarray, cfg: Any) -> np.ndarray:
+    return _dual_arm_pose_embed_raw(_dual_arm_pose_analytic_target_raw(x_raw, cfg))
+
+
+def _dual_arm_pose_analytic_dist_embed(x_raw: np.ndarray, cfg: Any) -> np.ndarray:
+    src = _dual_arm_pose_embed_raw(x_raw)
+    tgt = _dual_arm_pose_analytic_target_embed(x_raw, cfg)
+    return np.linalg.norm(src - tgt, axis=1).astype(np.float32)
+
+
 def evaluate_bidirectional_chamfer(
     model: nn.Module,
     x_train: np.ndarray,
@@ -284,11 +387,11 @@ def evaluate_bidirectional_chamfer(
     rng = _fixed_rng()
     if dataset_name is not None:
         gt_grid = resolve_gt_grid(str(dataset_name), cfg, x_train=x_train)
-        n_gt = min(len(gt_grid), max(64, int(cfg.eval_chamfer_n_gt)))
+        n_gt = len(gt_grid)
         idx = rng.choice(len(gt_grid), size=n_gt, replace=False)
         gt_samples = gt_grid[idx].astype(np.float32)
     else:
-        n_gt = min(len(x_train), max(64, int(cfg.eval_chamfer_n_gt)))
+        n_gt = min(len(x_train), max(64, int(getattr(cfg, "eval_gt_n_grid", DEFAULT_EVAL_CFG["eval_gt_n_grid"]))))
         idx = rng.choice(len(x_train), size=n_gt, replace=False)
         gt_samples = x_train[idx].astype(np.float32)
     if postprocess_fn is not None:
@@ -302,7 +405,11 @@ def evaluate_bidirectional_chamfer(
             cfg,
         )
     else:
-        x0 = x0_override.astype(np.float32) if x0_override is not None else sample_eval_seed_points(x_train, cfg)
+        x0 = (
+            x0_override.astype(np.float32)
+            if x0_override is not None
+            else sample_eval_seed_points(x_train, cfg, dataset_name=dataset_name)
+        )
         if postprocess_fn is not None:
             x0 = postprocess_fn(x0)
         learned_samples, _ = project_fn(model, x0, eps_stop)
@@ -357,7 +464,7 @@ def evaluate_projection_metrics(
         grid = postprocess_fn(grid).astype(np.float32)
 
     eval_eps_used, h_on = compute_eps_stop(model, x_train, cfg, return_h_on=True)
-    x_eval = sample_eval_seed_points(x_train, cfg)
+    x_eval = sample_eval_seed_points(x_train, cfg, dataset_name=dataset_name)
     if postprocess_fn is not None:
         x_eval = postprocess_fn(x_eval).astype(np.float32)
     with torch.no_grad():
@@ -371,6 +478,10 @@ def evaluate_projection_metrics(
         str(dataset_name) in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj")
         and embed_fn is not None
     )
+    use_dual_arm_workspace_analytic = (
+        str(dataset_name) == "12d_dual_arm_pose_yoffset_samex_plane_sameori"
+        and embed_fn is not None
+    )
 
     if embed_fn is not None:
         grid_metric = embed_fn(grid)
@@ -382,6 +493,12 @@ def evaluate_projection_metrics(
         ):
             d_true_eval = _workspace_pose_analytic_dist_embed(
                 x_eval_metric[:, :6].astype(np.float32)
+            )
+            dist_space = "workspace_analytic"
+        elif use_dual_arm_workspace_analytic and x_eval.ndim == 2 and x_eval.shape[1] >= 12:
+            d_true_eval = _dual_arm_pose_analytic_dist_embed(
+                x_eval[:, :12].astype(np.float32),
+                cfg,
             )
             dist_space = "workspace_analytic"
         else:
@@ -414,6 +531,11 @@ def evaluate_projection_metrics(
             proj_true = _workspace_pose_analytic_target_embed(
                 x_eval_metric[:, :6].astype(np.float32)
             )
+        elif use_dual_arm_workspace_analytic and x_eval.ndim == 2 and x_eval.shape[1] >= 12:
+            proj_true = _dual_arm_pose_analytic_target_embed(
+                x_eval[:, :12].astype(np.float32),
+                cfg,
+            )
         else:
             proj_true, _ = _true_projection(x_eval_metric, grid_metric)
     else:
@@ -430,6 +552,11 @@ def evaluate_projection_metrics(
         ):
             proj_final_true_dist = _workspace_pose_analytic_dist_embed(
                 proj_metric_all[proj_mask, :6].astype(np.float32)
+            )
+        elif use_dual_arm_workspace_analytic and proj.ndim == 2 and proj.shape[1] >= 12:
+            proj_final_true_dist = _dual_arm_pose_analytic_dist_embed(
+                proj[proj_mask, :12].astype(np.float32),
+                cfg,
             )
         else:
             proj_final_true_dist = _nn_dist(proj_metric_all[proj_mask], grid_metric)

@@ -13,7 +13,14 @@ import numpy as np
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 
 DEFAULT_METHODS = ["delta", "eikonal", "vae", "ecomann"]
-DEFAULT_METRICS = ["proj_manifold_dist", "pred_precision", "train_seconds"]
+DEFAULT_METRICS = [
+    "proj_manifold_dist",
+    "pred_precision",
+    "train_seconds",
+    "gt_to_learned_mean",
+    "learned_to_gt_mean",
+    "bidirectional_chamfer",
+]
 
 
 def _split_csv(text: str | None, default: Iterable[str] | None = None) -> list[str]:
@@ -58,9 +65,12 @@ def _load_from_per_case_csv(path: str) -> list[dict[str, object]]:
                     "dataset": str(r.get("dataset", "")).strip(),
                     "method": str(r.get("method", "")).strip(),
                     "seed": str(r.get("seed", "")).strip() or "0",
+                    "bidirectional_chamfer": _to_float(r.get("bidirectional_chamfer", "")),
                     "proj_manifold_dist": _to_float(r.get("proj_manifold_dist", "")),
                     "pred_precision": _to_float(r.get("pred_precision", "")),
                     "train_seconds": _to_float(r.get("train_seconds", "")),
+                    "gt_to_learned_mean": _to_float(r.get("gt_to_learned_mean", "")),
+                    "learned_to_gt_mean": _to_float(r.get("learned_to_gt_mean", "")),
                 }
             )
     return rows
@@ -77,14 +87,22 @@ def _load_from_per_run_jsonl(path: str) -> list[dict[str, object]]:
                 r = json.loads(line)
             except Exception:
                 continue
+            metrics = r.get("metrics", {})
+            if not isinstance(metrics, dict):
+                metrics = {}
             rows.append(
                 {
                     "dataset": str(r.get("dataset", "")).strip(),
                     "method": str(r.get("method", "")).strip(),
                     "seed": str(r.get("seed", "")).strip() or "0",
-                    "proj_manifold_dist": _to_float(r.get("proj_manifold_dist", "")),
-                    "pred_precision": _to_float(r.get("pred_precision", "")),
-                    "train_seconds": _to_float(r.get("train_seconds", "")),
+                    # per_run_metrics.jsonl stores metrics under nested key "metrics";
+                    # keep backward-compatible fallback to top-level fields.
+                    "bidirectional_chamfer": _to_float(metrics.get("bidirectional_chamfer", r.get("bidirectional_chamfer", ""))),
+                    "proj_manifold_dist": _to_float(metrics.get("proj_manifold_dist", r.get("proj_manifold_dist", ""))),
+                    "pred_precision": _to_float(metrics.get("pred_precision", r.get("pred_precision", ""))),
+                    "train_seconds": _to_float(metrics.get("train_seconds", r.get("train_seconds", ""))),
+                    "gt_to_learned_mean": _to_float(metrics.get("gt_to_learned_mean", r.get("gt_to_learned_mean", ""))),
+                    "learned_to_gt_mean": _to_float(metrics.get("learned_to_gt_mean", r.get("learned_to_gt_mean", ""))),
                 }
             )
     return rows
@@ -114,21 +132,24 @@ def _load_from_eval_jsons(bench_dir: str) -> list[dict[str, object]]:
                     "dataset": dataset,
                     "method": method,
                     "seed": "last",
+                    "bidirectional_chamfer": _to_float(d.get("bidirectional_chamfer", "")),
                     "proj_manifold_dist": _to_float(d.get("proj_manifold_dist", "")),
                     "pred_precision": _to_float(d.get("pred_precision", "")),
                     "train_seconds": _to_float(d.get("train_seconds", "")),
+                    "gt_to_learned_mean": _to_float(d.get("gt_to_learned_mean", "")),
+                    "learned_to_gt_mean": _to_float(d.get("learned_to_gt_mean", "")),
                 }
             )
     return rows
 
 
 def _load_rows(bench_dir: str) -> tuple[list[dict[str, object]], str]:
-    per_case = os.path.join(bench_dir, "per_case_metrics.csv")
-    if os.path.isfile(per_case):
-        return _load_from_per_case_csv(per_case), "per_case_metrics.csv"
     per_run = os.path.join(bench_dir, "per_run_metrics.jsonl")
     if os.path.isfile(per_run):
         return _load_from_per_run_jsonl(per_run), "per_run_metrics.jsonl"
+    per_case = os.path.join(bench_dir, "per_case_metrics.csv")
+    if os.path.isfile(per_case):
+        return _load_from_per_case_csv(per_case), "per_case_metrics.csv"
     return _load_from_eval_jsons(bench_dir), "*_eval.json"
 
 
@@ -138,12 +159,19 @@ def _infer_dataset_order(rows: list[dict[str, object]], methods: list[str]) -> l
         "2d_looped_spiro",
         "2d_planar_arm_line_n2",
         "2d_sparse_sine",
+        "3d_planar_arm_line_n3",
         "3d_planar_arm_line_n3_traj",
         "3d_spatial_arm_ellip_n3",
+        "3d_spatial_arm_ellip_n3_traj",
+        "3d_twosphere",
         "3d_twosphere_traj",
-        "3d_vz_2d_ellipse",
+        "3d_torus_surface",
         "3d_torus_surface_traj",
+        "3d_vz_2d_ellipse",
+        "3d_vz_2d_ellipse_traj",
         "6d_spatial_arm_up_n6_py",
+        "6d_spatial_arm_up_n6_py_traj",
+        "6d_workspace_sine_surface_pose",
         "6d_workspace_sine_surface_pose_traj",
     ]
     seen = sorted({str(r["dataset"]) for r in rows if str(r.get("dataset", ""))})
@@ -484,10 +512,10 @@ def _save_cross_dataset_csv(path: str, methods: list[str], datasets: list[str], 
 
 def main() -> None:
     p = argparse.ArgumentParser(description="Plot benchmark grouped bar charts with error bars.")
-    p.add_argument("--bench", type=str, default="sphere_traj_4m_3seed_small", help="Benchmark name (under outputs_unified/bench) or absolute path.")
+    p.add_argument("--bench", type=str, default="paper_mix_2d_3d6d_traj_vs_nontraj_7seed", help="Benchmark name (under outputs_unified/bench) or absolute path.")
     p.add_argument("--methods", type=str, default=None, help="Comma-separated methods. Default: delta,eikonal,vae,ecomann")
     p.add_argument("--datasets", type=str, default=None, help="Comma-separated datasets; default auto from data.")
-    p.add_argument("--metrics", type=str, default="proj_manifold_dist,pred_precision, train_seconds", help="Comma-separated metrics to plot.")
+    p.add_argument("--metrics", type=str, default="proj_manifold_dist,pred_precision, train_seconds,gt_to_learned_mean", help="Comma-separated metrics to plot.")
     p.add_argument("--analysis-dir", type=str, default="analysis_bars", help="Output dir under bench dir.")
     p.add_argument("--fill-missing-zero", action="store_true", default=True)
     p.add_argument("--no-fill-missing-zero", dest="fill_missing_zero", action="store_false")

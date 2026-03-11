@@ -5,6 +5,7 @@ import argparse
 import glob
 import json
 import os
+import shutil
 
 _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Keep local W&B files under repo-root/wandb regardless of launch cwd.
@@ -36,6 +37,34 @@ def _resolve_outdir(outdir: str) -> str:
     if os.path.isabs(p):
         return p
     return os.path.join(_PROJECT_ROOT, p)
+
+
+def _clear_directory(path: str) -> None:
+    for name in os.listdir(path):
+        p = os.path.join(path, name)
+        if os.path.isdir(p) and not os.path.islink(p):
+            shutil.rmtree(p)
+        else:
+            os.remove(p)
+
+
+def _prepare_outdir(path: str, *, retrain: bool) -> None:
+    if os.path.exists(path) and not os.path.isdir(path):
+        raise ValueError(f"outdir exists but is not a directory: {path}")
+    if not os.path.exists(path):
+        os.makedirs(path, exist_ok=True)
+        return
+    has_existing = any(True for _ in os.scandir(path))
+    if not has_existing:
+        return
+    if retrain:
+        print(f"[retrain] clearing existing outdir: {path}")
+        _clear_directory(path)
+        return
+    raise ValueError(
+        "outdir already exists and is not empty; refusing to mix old/new results. "
+        "Use --retrain (or -retrain) to clear it first, or choose a new --outdir."
+    )
 
 
 def _log_dataset_plots_to_wandb(*, outdir: str, method: str, dataset: str) -> None:
@@ -106,6 +135,7 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--method", required=True, choices=sorted(VALID_METHODS))
     p.add_argument("--dataset", required=True)
     p.add_argument("--outdir", default="outputs_unified")
+    p.add_argument("-retrain", "--retrain", action="store_true", help="clear non-empty outdir before running")
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
@@ -120,7 +150,7 @@ def _build_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = _build_parser().parse_args()
     outdir = _resolve_outdir(str(args.outdir))
-    os.makedirs(outdir, exist_ok=True)
+    _prepare_outdir(outdir, retrain=bool(args.retrain))
     config_root = _resolve_config_root(str(args.config_root))
 
     wb_run = None

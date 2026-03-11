@@ -1,0 +1,8 @@
+{
+  "n_train": 256,
+  "traj_gene_n_grid": 512,
+  "off_bank_size": 32,
+  "off_bank_oversample": 8,
+  "traj_count": 20,
+  "traj_knn": 16
+}

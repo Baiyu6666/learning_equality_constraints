@@ -49,6 +49,7 @@ from methods.baseline_udf.plots import (
 from common.plot_common import plot_contour_traj_2d
 from common.plot_common import plot_planned_paths_3d
 from methods.vector_eikonal.plots import (
+    _plot_constraint_surface_paper_3d,
     _plot_constraint_2d,
     _plot_training_diagnostics,
     _plot_zero_surfaces_3d,
@@ -61,7 +62,18 @@ from evaluator.evaluator import eval_bounds_from_train, resolve_gt_grid
 
 from common.config_loader import apply_overrides, load_layered_config
 
-VALID_METHODS = {"eikonal", "margin", "delta", "vae", "ecomann"}
+VALID_METHODS = {"eikonal", "eikonal_single", "margin", "delta", "vae", "ecomann"}
+ARM_UP_6D_DATASETS = {
+    "6d_spatial_arm_up_n6",
+    "6d_spatial_arm_up_n6_py",
+    "6d_spatial_arm_up_n6_traj",
+    "6d_spatial_arm_up_n6_py_traj",
+}
+
+
+def _ur5_use_pybullet_n6(dataset: str) -> bool:
+    n = str(dataset)
+    return n.startswith("6d_spatial_arm_up_n6") and ("_py" not in n)
 
 
 @dataclass
@@ -69,7 +81,7 @@ class VAEConfig:
     seed: int = 36
     device: str = "auto"
     n_train: int = 512
-    n_grid: int = 4096
+    traj_gene_n_grid: int = 4096
     latent_dim: int = -1
     hidden_dims: tuple[int, ...] = (64, 32)
     epochs: int = 500
@@ -216,7 +228,7 @@ def _worst_case_traj_3d(
         return None, None
 
     if _is_arm_dataset(dataset) or _is_workspace_pose_dataset(dataset):
-        use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+        use_pybullet_n6 = _ur5_use_pybullet_n6(str(dataset))
         gt_metric = _workspace_embed_for_eval(str(dataset), gt_grid, ur5_use_pybullet_n6=use_pybullet_n6)
         proj_metric = _workspace_embed_for_eval(str(dataset), proj, ur5_use_pybullet_n6=use_pybullet_n6)
     else:
@@ -387,6 +399,15 @@ def _save_common_method_plots(
             cfg=vis_cfg,
             intersection_points=eval_artifacts.get("proj", None),
         )
+        out_paper = os.path.join(outdir, f"{dataset}_{method_tag}_constraint_surface_paper.png")
+        _plot_constraint_surface_paper_3d(
+            model=model,
+            x_train=x_train,
+            out_path=out_paper,
+            axis_labels=(labels[0], labels[1], labels[2]),
+            cfg=vis_cfg,
+            intersection_points=eval_artifacts.get("proj", None),
+        )
         worst_traj_3d, worst_x0_3d = _worst_case_traj_3d(
             dataset=str(dataset),
             model=model,
@@ -545,7 +566,7 @@ def _save_udf_plots(
             axis_labels=(axis_labels[0], axis_labels[1], axis_labels[2]),
         )
         return
-    if x_train.shape[1] == 6 and str(dataset) in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if x_train.shape[1] == 6 and str(dataset) in ARM_UP_6D_DATASETS:
         out_plan = os.path.join(outdir, f"{dataset}_{method}_planning_demo.png")
         _plot_planar_arm_planning(
             model,
@@ -644,10 +665,23 @@ def _resolve_run_config(
     config_root: str,
     cli_overrides: list[str],
 ) -> tuple[dict[str, Any], list[str]]:
-    cfg_dict, loaded_paths = load_layered_config(config_root, method, dataset)
+    cfg_method = "eikonal" if str(method) == "eikonal_single" else str(method)
+    cfg_dict, loaded_paths = load_layered_config(config_root, cfg_method, dataset)
     cfg_dict = apply_overrides(cfg_dict, cli_overrides)
+    # Guard against common typo: passing method_dataset id as --dataset
+    # (e.g. "eikonal_6d_spatial_arm_up_n6_py") instead of pure dataset id.
+    ds_prefix = os.path.abspath(os.path.join(os.path.abspath(config_root), "datasets"))
+    md_prefix = os.path.abspath(os.path.join(os.path.abspath(config_root), "method_dataset"))
+    has_dataset_layer = any(os.path.abspath(p).startswith(ds_prefix) for p in loaded_paths)
+    has_method_dataset_layer = any(os.path.abspath(p).startswith(md_prefix) for p in loaded_paths)
+    if (not has_dataset_layer) and has_method_dataset_layer and str(dataset).startswith(f"{cfg_method}_"):
+        base = str(dataset)[len(f"{cfg_method}_") :]
+        raise ValueError(
+            f"invalid dataset id '{dataset}': looks like a method_dataset key. "
+            f"Use --dataset {base} (without '{cfg_method}_' prefix)."
+        )
     _require_method_projector_cfg(
-        method=method,
+        method=cfg_method,
         config_root=config_root,
         loaded_paths=loaded_paths,
     )
@@ -676,7 +710,7 @@ def _load_config_file(path: str) -> dict[str, Any]:
 
 def _require_method_projector_cfg(*, method: str, config_root: str, loaded_paths: list[str]) -> None:
     # Keep strict requirement for iterative projector-based methods.
-    if str(method) not in {"eikonal", "margin", "delta"}:
+    if str(method) not in {"eikonal", "eikonal_single", "margin", "delta"}:
         return
     root = os.path.abspath(str(config_root))
     method_prefix = os.path.join(root, "methods", str(method))
@@ -700,10 +734,14 @@ def run_eikonal_one(
     out_root: str,
     seed_override: int | None,
     cfg_mapping: dict[str, Any],
+    method_name: str = "eikonal",
+    method_tag: str = "on_eikonal",
+    force_single_output: bool = False,
 ) -> dict[str, Any]:
     cfg = _build_cfg_from_mapping_strict(ve.DemoCfg, cfg_mapping)
     _apply_projector_subcfg(cfg)
     _apply_planner_subcfg(cfg)
+    cfg.train_method_name = str(method_name)
 
     if seed_override is not None:
         cfg.seed = int(seed_override)
@@ -714,21 +752,25 @@ def run_eikonal_one(
         torch.set_float32_matmul_precision("high")
 
     set_seed(int(cfg.seed))
-    outdir = os.path.join(out_root, "eikonal")
+    outdir = os.path.join(out_root, str(method_name))
     os.makedirs(outdir, exist_ok=True)
 
     ds = resolve_dataset(
         dataset,
         cfg,
         optimize_ur5_train_only=True,
-        ur5_backend=("pybullet" if str(dataset) == "6d_spatial_arm_up_n6" else "analytic"),
+        ur5_backend=("pybullet" if _ur5_use_pybullet_n6(str(dataset)) else "analytic"),
     )
     x_train = ds["x_train"]
     data_dim = int(ds.get("data_dim", int(x_train.shape[1])))
     true_codim = int(ds.get("true_codim", 1))
     train_t0 = time.perf_counter()
 
-    if str(cfg.constraint_dim).lower() == "auto":
+    if bool(force_single_output):
+        codim = 1
+        cfg.constraint_dim = 1
+        cfg.lam_eikonal_ortho = 0.0
+    elif str(cfg.constraint_dim).lower() == "auto":
         try:
             est = ve.estimate_codim_local_pca(
                 x_train,
@@ -769,7 +811,7 @@ def run_eikonal_one(
         post_fn = _wrap_workspace_pose_rpy_np
     else:
         post_fn = None
-    use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+    use_pybullet_n6 = _ur5_use_pybullet_n6(str(dataset))
     embed_fn = (
         lambda q, _name=dataset: _workspace_embed_for_eval(
             _name,
@@ -805,19 +847,19 @@ def run_eikonal_one(
     vis_cfg = _make_vis_cfg_for_method(dataset, cfg, eval_cfg)
     _save_common_method_plots(
         dataset=dataset,
-        method_tag="on_eikonal",
+        method_tag=str(method_tag),
         model=model,
         x_train=x_train,
         outdir=outdir,
         vis_cfg=vis_cfg,
         eval_artifacts=eval_artifacts,
     )
-    out_diag = os.path.join(outdir, f"{dataset}_on_eikonal_training_diagnostics.png")
+    out_diag = os.path.join(outdir, f"{dataset}_{method_tag}_training_diagnostics.png")
     _plot_training_diagnostics(train_hist, out_diag, title=f"{dataset}: training diagnostics (on-data)")
 
     if int(x_train.shape[1]) == 2:
         if str(dataset) == "2d_planar_arm_line_n2":
-            out_plan = os.path.join(outdir, f"{dataset}_on_eikonal_planning_demo.png")
+            out_plan = os.path.join(outdir, f"{dataset}_{method_tag}_planning_demo.png")
             _plot_planar_arm_planning(
                 model,
                 str(dataset),
@@ -874,12 +916,12 @@ def run_eikonal_one(
                     plans_constr,
                     vis_cfg,
                     out_path=out_plan,
-                    title=f"{dataset}: Eikonal Planned Paths",
+                    title=f"{dataset}: {method_name} Planned Paths",
                     zero_level_eps=eps_used,
                 )
 
-    if str(dataset) in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3", "6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-        out_plan = os.path.join(outdir, f"{dataset}_on_eikonal_planning_demo.png")
+    if str(dataset) in ("3d_planar_arm_line_n3", "3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3") or str(dataset) in ARM_UP_6D_DATASETS:
+        out_plan = os.path.join(outdir, f"{dataset}_{method_tag}_planning_demo.png")
         _plot_planar_arm_planning(
             model,
             str(dataset),
@@ -928,40 +970,57 @@ def run_eikonal_one(
                 else:
                     plans_constr.append(planned)
             labels3 = _axis_labels_for_dataset(dataset, 3)
-            out_plan = os.path.join(outdir, f"{dataset}_on_eikonal_planner_paths_3d.png")
+            out_plan = os.path.join(outdir, f"{dataset}_{method_tag}_planner_paths_3d.png")
             plot_planned_paths_3d(
                 x_train=x_train,
                 plans_proj=plans_proj,
                 plans_constr=plans_constr,
                 out_path=out_plan,
-                title=f"{dataset}: Eikonal Planned Paths (3D)",
+                title=f"{dataset}: {method_name} Planned Paths (3D)",
                 axis_labels=(labels3[0], labels3[1], labels3[2]),
             )
 
     if str(dataset) in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
-        out_pose = os.path.join(outdir, f"{dataset}_on_eikonal_workspace_pose_orientation.png")
+        out_pose = os.path.join(outdir, f"{dataset}_{method_tag}_workspace_pose_orientation.png")
         _plot_workspace_pose_orientation_3d(
             x_train=x_train,
             eval_proj=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
             out_path=out_pose,
-            title=f"{dataset} (eikonal): projected eval poses + orientation z-axis",
+            title=f"{dataset} ({method_name}): projected eval poses + orientation z-axis",
         )
-        out_err = os.path.join(outdir, f"{dataset}_on_eikonal_workspace_pose_proj_error_distributions.png")
+        out_err = os.path.join(outdir, f"{dataset}_{method_tag}_workspace_pose_proj_error_distributions.png")
         _plot_workspace_pose_projection_error_distributions(
             x_before=eval_artifacts.get("x_eval", np.zeros((0, 6), dtype=np.float32)),
             x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
             out_path=out_err,
-            title=f"{dataset} (eikonal): projection errors before/after",
+            title=f"{dataset} ({method_name}): projection errors before/after",
+        )
+    if dataset in ARM_UP_6D_DATASETS:
+        out_dist = os.path.join(outdir, f"{dataset}_{method_tag}_proj_value_distribution.png")
+        _plot_ur5_projection_error_distribution_from_pairs(
+            q_eval=eval_artifacts.get("x_eval", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            out_path=out_dist,
+            title=f"{dataset} ({method_name}): orientation-angle error before/after projection",
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
+        )
+        out_ws = os.path.join(outdir, f"{dataset}_{method_tag}_eval_proj_workspace_orientation.png")
+        _plot_ur5_eval_projection_workspace_orientation_3d(
+            q_train=x_train,
+            q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
+            out_path=out_ws,
+            title=f"{dataset} ({method_name}): eval projected points in workspace + tool orientation",
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
 
-    eval_path = os.path.join(outdir, f"{dataset}_on_eikonal_eval.json")
-    ckpt_path = os.path.join(outdir, f"{dataset}_on_eikonal_model.pt")
+    eval_path = os.path.join(outdir, f"{dataset}_{method_tag}_eval.json")
+    ckpt_path = os.path.join(outdir, f"{dataset}_{method_tag}_model.pt")
     with open(eval_path, "w", encoding="utf-8") as f:
         json.dump(metrics, f, indent=2, ensure_ascii=False)
     torch.save(
         {
             "dataset": str(dataset),
-            "method": "eikonal",
+            "method": str(method_name),
             "model_state": model.state_dict(),
             "in_dim": int(x_train.shape[1]),
             "constraint_dim": int(learned_codim),
@@ -975,7 +1034,7 @@ def run_eikonal_one(
     )
 
     return {
-        "method": "eikonal",
+        "method": str(method_name),
         "dataset": dataset,
         "metrics": _normalize_metrics(metrics),
         "eval_path": eval_path,
@@ -1011,7 +1070,7 @@ def run_udf_one(
         dataset,
         cfg,
         optimize_ur5_train_only=True,
-        ur5_backend=("pybullet" if str(dataset) == "6d_spatial_arm_up_n6" else "analytic"),
+        ur5_backend=("pybullet" if _ur5_use_pybullet_n6(str(dataset)) else "analytic"),
     )
     x_train = ds["x_train"]
     true_codim = int(ds.get("true_codim", 1))
@@ -1028,7 +1087,7 @@ def run_udf_one(
         post_fn = _wrap_workspace_pose_rpy_np
     else:
         post_fn = None
-    use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+    use_pybullet_n6 = _ur5_use_pybullet_n6(str(dataset))
     embed_fn = (
         lambda q, _name=dataset: _workspace_embed_for_eval(
             _name,
@@ -1082,14 +1141,14 @@ def run_udf_one(
             vis_cfg=vis_cfg,
             eval_artifacts=eval_artifacts,
         )
-    if dataset in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if dataset in ARM_UP_6D_DATASETS:
         out_dist = os.path.join(outdir, f"{dataset}_{method}_proj_value_distribution.png")
         _plot_ur5_projection_error_distribution_from_pairs(
             q_eval=eval_artifacts.get("x_eval", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_dist,
             title=f"{dataset} ({method}): orientation-angle error before/after projection",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
         out_ws = os.path.join(outdir, f"{dataset}_{method}_eval_proj_workspace_orientation.png")
         _plot_ur5_eval_projection_workspace_orientation_3d(
@@ -1097,7 +1156,7 @@ def run_udf_one(
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_ws,
             title=f"{dataset} ({method}): eval projected points in workspace + tool orientation",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
     if dataset in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
         out_pose = os.path.join(outdir, f"{dataset}_{method}_workspace_pose_orientation.png")
@@ -1169,7 +1228,7 @@ def run_ecomann_one(
         dataset,
         cfg,
         optimize_ur5_train_only=True,
-        ur5_backend=("pybullet" if str(dataset) == "6d_spatial_arm_up_n6" else "analytic"),
+        ur5_backend=("pybullet" if _ur5_use_pybullet_n6(str(dataset)) else "analytic"),
     )
     x_train = ds["x_train"]
     true_codim = int(ds.get("true_codim", 1))
@@ -1188,7 +1247,7 @@ def run_ecomann_one(
         post_fn = _wrap_workspace_pose_rpy_np
     else:
         post_fn = None
-    use_pybullet_n6 = str(dataset) == "6d_spatial_arm_up_n6"
+    use_pybullet_n6 = _ur5_use_pybullet_n6(str(dataset))
     embed_fn = (
         lambda q, _name=dataset: _workspace_embed_for_eval(
             _name,
@@ -1278,14 +1337,14 @@ def run_ecomann_one(
     )
     if out_loss is not None:
         print(f"[saved] {out_loss}")
-    if dataset in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if dataset in ARM_UP_6D_DATASETS:
         out_dist = os.path.join(outdir, f"{dataset}_ecomann_proj_value_distribution.png")
         _plot_ur5_projection_error_distribution_from_pairs(
             q_eval=eval_artifacts.get("x_eval", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_dist,
             title=f"{dataset} (ecomann): orientation-angle error before/after projection",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
         out_ws = os.path.join(outdir, f"{dataset}_ecomann_eval_proj_workspace_orientation.png")
         _plot_ur5_eval_projection_workspace_orientation_3d(
@@ -1293,7 +1352,7 @@ def run_ecomann_one(
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_ws,
             title=f"{dataset} (ecomann): eval projected points in workspace + tool orientation",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
     if dataset in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
         out_pose = os.path.join(outdir, f"{dataset}_ecomann_workspace_pose_orientation.png")
@@ -1366,6 +1425,16 @@ def run_one(
             seed_override=seed_override,
             cfg_mapping=cfg_mapping,
         )
+    elif method == "eikonal_single":
+        result = run_eikonal_one(
+            dataset,
+            out_root=out_root,
+            seed_override=seed_override,
+            cfg_mapping=cfg_mapping,
+            method_name="eikonal_single",
+            method_tag="on_eikonal_single",
+            force_single_output=True,
+        )
     elif method == "ecomann":
         result = run_ecomann_one(
             dataset,
@@ -1425,7 +1494,7 @@ def run_vae_one(
 
     ur5_backend = str(getattr(cfg, "ur5_backend", "auto")).lower().strip()
     if ur5_backend in ("", "auto"):
-        ur5_backend = "pybullet" if str(dataset) == "6d_spatial_arm_up_n6" else "analytic"
+        ur5_backend = "pybullet" if _ur5_use_pybullet_n6(str(dataset)) else "analytic"
     ds = resolve_dataset(
         dataset,
         cfg,
@@ -1503,7 +1572,7 @@ def run_vae_one(
     # Extra VAE generative metrics on prior samples z~N(0,1):
     # - gen_manifold_dist: mean NN distance from generated points to GT manifold
     # - gen_chamfer: bidirectional NN distance sum between generated set and GT manifold
-    n_gen = max(64, int(getattr(eval_cfg, "eval_chamfer_n_seed", 4096)))
+    n_gen = max(64, int(getattr(eval_cfg, "eval_proj_n_points", 4096)))
     _, x_gen = vae_base.sample_prior_decode(
         vae_model,
         latent_dim=int(latent_dim),
@@ -1753,7 +1822,7 @@ def run_vae_one(
                     title=f"{dataset}: VAE Planned Paths (3D)",
                     axis_labels=(labels3[0], labels3[1], labels3[2]),
                 )
-    elif int(x_train.shape[1]) == 6 and str(dataset) in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    elif int(x_train.shape[1]) == 6 and str(dataset) in ARM_UP_6D_DATASETS:
         out_plan = os.path.join(outdir, f"{dataset}_vae_planning_demo.png")
         _plot_planar_arm_planning(
             field_model,
@@ -1764,14 +1833,14 @@ def run_vae_one(
             render_pybullet=False,
         )
 
-    if dataset in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+    if dataset in ARM_UP_6D_DATASETS:
         out_dist = os.path.join(outdir, f"{dataset}_vae_proj_value_distribution.png")
         _plot_ur5_projection_error_distribution_from_pairs(
             q_eval=eval_artifacts.get("x_eval", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_dist,
             title=f"{dataset} (vae): orientation-angle error before/after projection",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
         out_ws = os.path.join(outdir, f"{dataset}_vae_eval_proj_workspace_orientation.png")
         _plot_ur5_eval_projection_workspace_orientation_3d(
@@ -1779,7 +1848,7 @@ def run_vae_one(
             q_eval_proj=eval_artifacts.get("proj", np.zeros((0, x_train.shape[1]), dtype=np.float32)),
             out_path=out_ws,
             title=f"{dataset} (vae): eval projected points in workspace + tool orientation",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
         out_ws_gen = os.path.join(outdir, f"{dataset}_vae_eval_workspace_orientation.png")
         _plot_ur5_eval_projection_workspace_orientation_3d(
@@ -1787,7 +1856,7 @@ def run_vae_one(
             q_eval_proj=x_gen.astype(np.float32),
             out_path=out_ws_gen,
             title=f"{dataset} (vae): generated (z~N(0,1)) in workspace + tool orientation",
-            use_pybullet_n6=(dataset == "6d_spatial_arm_up_n6"),
+            use_pybullet_n6=_ur5_use_pybullet_n6(str(dataset)),
         )
     if dataset in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj"):
         out_pose = os.path.join(outdir, f"{dataset}_vae_workspace_pose_orientation.png")

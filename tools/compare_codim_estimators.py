@@ -14,6 +14,7 @@ from core.dataset_resolve import (
     BASE_3D_DATASETS,
     BASE_4D_DATASETS,
     BASE_6D_DATASETS,
+    BASE_12D_DATASETS,
     resolve_dataset,
 )
 from core.kinematics import wrap_np_pi as _wrap_np_pi
@@ -21,7 +22,7 @@ from core.kinematics import wrap_np_pi as _wrap_np_pi
 
 def _all_base_datasets() -> list[str]:
     # Intentionally exclude 2D datasets.
-    return list(BASE_3D_DATASETS) + list(BASE_4D_DATASETS) + list(BASE_6D_DATASETS)
+    return list(BASE_3D_DATASETS) + list(BASE_4D_DATASETS) + list(BASE_6D_DATASETS) + list(BASE_12D_DATASETS)
 
 
 def _knn_indices(x: np.ndarray, i: int, k: int) -> np.ndarray:

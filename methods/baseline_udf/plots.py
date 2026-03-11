@@ -22,6 +22,25 @@ def _pairwise_sqdist(a: np.ndarray, b: np.ndarray) -> np.ndarray:
     return np.maximum(d2, 0.0)
 
 
+def _knn_indices(x: np.ndarray, k: int) -> np.ndarray:
+    n = int(x.shape[0])
+    if n <= 1:
+        return np.zeros((n, 0), dtype=np.int64)
+    k_eff = max(1, min(int(k), n - 1))
+    try:
+        from scipy.spatial import cKDTree  # type: ignore
+
+        tree = cKDTree(np.asarray(x, dtype=np.float64))
+        idx = tree.query(np.asarray(x, dtype=np.float64), k=k_eff + 1)[1]
+        idx = np.asarray(idx, dtype=np.int64)
+        if idx.ndim == 1:
+            idx = idx[:, None]
+        return idx[:, 1:]
+    except Exception:
+        d2 = _pairwise_sqdist(x, x)
+        return np.argsort(d2, axis=1)[:, 1 : k_eff + 1].astype(np.int64)
+
+
 def _as_sigmas(sigmas: Tuple[float, ...] | float) -> np.ndarray:
     if isinstance(sigmas, (int, float)):
         return np.array([float(sigmas)], dtype=np.float32)
@@ -50,10 +69,10 @@ def _local_pca_frame(neigh: np.ndarray, center: np.ndarray) -> Tuple[np.ndarray,
 
 def _knn_normals(x: np.ndarray, k: int) -> np.ndarray:
     n, d = x.shape
-    d2 = _pairwise_sqdist(x, x)
+    nbr_idx_all = _knn_indices(x, k)
     normals = np.zeros((n, d), dtype=np.float32)
     for i in range(n):
-        nbr_idx = np.argsort(d2[i])[1 : k + 1]
+        nbr_idx = nbr_idx_all[i]
         nbrs = x[nbr_idx]
         _, evecs, _, _ = _local_pca_frame(nbrs, x[i])
         nvec = evecs[:, 0]
@@ -455,7 +474,7 @@ def plot_knn_normals(
         xx, yy = np.meshgrid(ux, uy, indexing="ij")
         return xx.astype(np.float32), yy.astype(np.float32), zgrid.astype(np.float32)
 
-    d2 = _pairwise_sqdist(x, x)
+    nbr_idx_all = _knn_indices(x, k)
     if n_basis is None or n_basis.shape[0] != len(x) or n_basis.shape[1] != x.shape[1]:
         raise ValueError("plot_knn_normals requires n_basis with shape (N, d, codim)")
     if x.shape[1] == 3:
@@ -472,7 +491,7 @@ def plot_knn_normals(
         plt.scatter(x[:, 0], x[:, 1], s=6, alpha=0.35, color="gray")
     basis_colors = ["#ef4444", "#06b6d4", "#22c55e", "#f59e0b"]
     for idx in idx_list:
-        nn_idx = np.argsort(d2, axis=1)[idx, 1 : k + 1]
+        nn_idx = nbr_idx_all[idx]
         nbrs = x[nn_idx]
         basis = n_basis[idx]
         codim = int(basis.shape[1])

@@ -11,7 +11,11 @@ def is_arm_dataset(name: str) -> bool:
 
 
 def is_workspace_pose_dataset(name: str) -> bool:
-    return str(name) in ("6d_workspace_sine_surface_pose", "6d_workspace_sine_surface_pose_traj")
+    return str(name) in (
+        "6d_workspace_sine_surface_pose",
+        "6d_workspace_sine_surface_pose_traj",
+        "12d_dual_arm_pose_yoffset_samex_plane_sameori",
+    )
 
 
 def wrap_np_pi(x: np.ndarray) -> np.ndarray:
@@ -21,7 +25,9 @@ def wrap_np_pi(x: np.ndarray) -> np.ndarray:
 def wrap_workspace_pose_rpy_np(x: np.ndarray) -> np.ndarray:
     y = x.astype(np.float32, copy=True)
     if y.ndim == 2 and y.shape[1] >= 6:
-        y[:, 3:6] = wrap_np_pi(y[:, 3:6])
+        for base in range(0, y.shape[1], 6):
+            if base + 6 <= y.shape[1]:
+                y[:, base + 3 : base + 6] = wrap_np_pi(y[:, base + 3 : base + 6])
     return y
 
 
@@ -125,16 +131,27 @@ def workspace_embed_for_eval(
     ur5_use_pybullet_n6: bool = True,
 ) -> np.ndarray:
     q = q.astype(np.float32)
+    base_name = str(name[:-5] if str(name).endswith("_traj") else name)
     if name == "2d_planar_arm_line_n2":
         return planar_fk(q, [1.0, 0.8])[:, -1, :].astype(np.float32)
     if name == "3d_planar_arm_line_n3":
         return planar_fk(q, [1.0, 0.8, 0.6])[:, -1, :].astype(np.float32)
-    if name in ("3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
+    if base_name in ("3d_spatial_arm_plane_n3", "3d_spatial_arm_ellip_n3", "3d_spatial_arm_circle_n3"):
         return spatial_fk_n3(q, [1.0, 0.8])[:, -1, :].astype(np.float32)
-    if name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
-        ee = spatial_fk(q, list(UR5_LINK_LENGTHS), use_pybullet_n6=ur5_use_pybullet_n6)[:, -1, :]
+    if base_name in ("6d_spatial_arm_up_n6", "6d_spatial_arm_up_n6_py"):
+        # Arm-up datasets are orientation-constrained; evaluate in orientation space only.
         tool = spatial_tool_axis_n6(q, use_pybullet=ur5_use_pybullet_n6)
-        return np.concatenate([ee.astype(np.float32), tool.astype(np.float32)], axis=1)
+        return tool.astype(np.float32)
+    if base_name == "12d_dual_arm_pose_yoffset_samex_plane_sameori" and q.shape[1] >= 12:
+        pose_1 = q[:, :6].astype(np.float32)
+        pose_2 = q[:, 6:12].astype(np.float32)
+
+        def _pose_embed(p: np.ndarray) -> np.ndarray:
+            pos = p[:, :3].astype(np.float32)
+            rpy = p[:, 3:6].astype(np.float32)
+            return np.concatenate([pos, np.cos(rpy), np.sin(rpy)], axis=1).astype(np.float32)
+
+        return np.concatenate([_pose_embed(pose_1), _pose_embed(pose_2)], axis=1).astype(np.float32)
     if is_workspace_pose_dataset(name) and q.shape[1] >= 6:
         pos = q[:, :3].astype(np.float32)
         z_axis = _rpy_zyx_to_local_z_np(q[:, 3:6].astype(np.float32))

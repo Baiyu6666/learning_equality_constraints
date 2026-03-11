@@ -1,6 +1,6 @@
 {
-  "n_train": 2048,
-  "n_grid": 8192,
+  "n_train": 3000,
+  "traj_gene_n_grid": 8192,
   "off_bank_size": 48,
   "off_bank_oversample": 10
 }

@@ -1,5 +1,5 @@
 {
-  "epochs": 1600,
+  "epochs": 400,
   "lr": 0.003,
   "projector": {
     "steps": 120,

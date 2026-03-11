@@ -1,2 +1,0 @@
-method,dataset,seed,bidirectional_chamfer,eps_stop,eval_eps_used,gt_to_learned_mean,gt_to_learned_p95,learned_to_gt_mean,learned_to_gt_p95,n_gt,n_learned,pred_FPrate,pred_on_mean_v,pred_precision,pred_recall,proj_manifold_dist,proj_steps,proj_true_dist,proj_v_residual
-ecomann,2d_ellipse,173,0.7132738828659058,0.7366176843643188,0.7366176843643188,0.18269452452659607,0.5749848484992981,0.5305793285369873,1.2872848510742188,1024.0,4096.0,0.9240273396424816,0.1258973926305771,0.057373046875,0.876708984375,0.5304925441741943,19.001953125,0.7567607164382935,0.22399353981018066

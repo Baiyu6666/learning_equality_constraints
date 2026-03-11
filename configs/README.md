@@ -1,4 +1,7 @@
 # Layered Configs
+2DEllipse 2DArmLine 2DSineSparse 3DArmLine 3DArmEllipse 3DTwoSphere 3DTwistedEliip 
+3DTorus 6DArmUp 6DSinePose 
+
 
 Priority (low -> high):
 

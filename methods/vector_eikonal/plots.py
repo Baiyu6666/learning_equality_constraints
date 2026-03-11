@@ -9,6 +9,7 @@ from matplotlib import animation
 import numpy as np
 import torch
 from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+from matplotlib.ticker import MaxNLocator
 from torch import nn
 
 from evaluator.evaluator import DEFAULT_EVAL_CFG, eval_bounds_from_train
@@ -64,11 +65,9 @@ def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title
     f_abs = hist["f_abs_mean"]
     gnorm = hist["grad_norm_mean"]
     ortho = hist["ortho_err"]
-    gate = hist.get("gate_mean", None)
     k = int(f_abs.shape[1]) if f_abs.ndim == 2 else 1
 
-    show_gate = isinstance(gate, np.ndarray) and gate.ndim == 2 and gate.shape[0] == len(ep)
-    ncols = 4 if show_gate else 3
+    ncols = 3
     plt.figure(figsize=(4.0 * ncols, 3.6))
 
     ax1 = plt.subplot(1, ncols, 1)
@@ -96,18 +95,6 @@ def _plot_training_diagnostics(hist: dict[str, np.ndarray], out_path: str, title
     ax3.set_ylabel("mean |J J^T - I|")
     ax3.set_title("Orthogonality Error")
     ax3.grid(alpha=0.25)
-
-    if show_gate:
-        kg = int(gate.shape[1])
-        ax4 = plt.subplot(1, ncols, 4)
-        for i in range(kg):
-            ax4.plot(ep, gate[:, i], lw=1.4, label=f"g{i+1}")
-        ax4.set_ylim(-0.02, 1.02)
-        ax4.set_xlabel("epoch")
-        ax4.set_ylabel("gate value")
-        ax4.set_title("Global Gates")
-        ax4.grid(alpha=0.25)
-        ax4.legend(loc="best", fontsize=8, ncol=2 if kg >= 6 else 1)
 
     plt.suptitle(title)
     plt.tight_layout()
@@ -322,6 +309,190 @@ def _plot_zero_surfaces_3d(
     if bool(cfg.show_3d_plot):
         plt.show()
     plt.close(fig)
+
+
+def _plot_constraint_surface_paper_3d(
+    model: nn.Module,
+    x_train: np.ndarray,
+    out_path: str,
+    axis_labels: tuple[str, str, str],
+    cfg: Any,
+    intersection_points: np.ndarray | None = None,
+) -> None:
+    # Paper-oriented variant: keep only the combined (third) view.
+    mins, maxs = eval_bounds_from_train(x_train, cfg)
+    n = max(16, int(cfg.surface_plot_n))
+    xx, yy, zz = np.meshgrid(
+        np.linspace(float(mins[0]), float(maxs[0]), n),
+        np.linspace(float(mins[1]), float(maxs[1]), n),
+        np.linspace(float(mins[2]), float(maxs[2]), n),
+        indexing="ij",
+    )
+    pts = np.stack([xx.ravel(), yy.ravel(), zz.ravel()], axis=1).astype(np.float32)
+    device = next(model.parameters()).device
+
+    out_list = []
+    with torch.no_grad():
+        for s in range(0, len(pts), max(1024, int(cfg.surface_eval_chunk))):
+            e = min(len(pts), s + max(1024, int(cfg.surface_eval_chunk)))
+            f = model(torch.from_numpy(pts[s:e]).to(device))
+            if f.dim() == 1:
+                f = f.unsqueeze(1)
+            out_list.append(f.detach().cpu().numpy())
+    f_all = np.concatenate(out_list, axis=0)
+    f1 = f_all[:, 0]
+    if f_all.shape[1] < 2:
+        return
+    f2 = f_all[:, 1]
+
+    with torch.no_grad():
+        f_train = model(torch.from_numpy(x_train).to(device))
+        if f_train.dim() == 1:
+            f_train = f_train.unsqueeze(1)
+        eps_q = float(getattr(cfg, "zero_eps_quantile", ZERO_EPS_QUANTILE_DEFAULT))
+        eps1 = max(float(np.percentile(np.abs(f_train[:, 0].detach().cpu().numpy()), eps_q)), 1e-4)
+        eps2 = max(float(np.percentile(np.abs(f_train[:, 1].detach().cpu().numpy()), eps_q)), 1e-4)
+        h_on = torch.linalg.norm(f_train[:, :2], dim=1).detach().cpu().numpy()
+        eps_h = max(float(np.percentile(h_on, eps_q)), 1e-6)
+
+    rendered = False
+    verts1 = faces1 = verts2 = faces2 = None
+    if bool(cfg.surface_use_marching_cubes):
+        try:
+            from skimage import measure  # type: ignore
+
+            f1_vol = f1.reshape(n, n, n)
+            f2_vol = f2.reshape(n, n, n)
+            dx = float((maxs[0] - mins[0]) / max(1, n - 1))
+            dy = float((maxs[1] - mins[1]) / max(1, n - 1))
+            dz = float((maxs[2] - mins[2]) / max(1, n - 1))
+
+            lvl1 = 0.0 if (float(np.min(f1_vol)) <= 0.0 <= float(np.max(f1_vol))) else eps1
+            lvl2 = 0.0 if (float(np.min(f2_vol)) <= 0.0 <= float(np.max(f2_vol))) else eps2
+            vol1 = f1_vol if lvl1 == 0.0 else np.abs(f1_vol)
+            vol2 = f2_vol if lvl2 == 0.0 else np.abs(f2_vol)
+            verts1, faces1, _, _ = measure.marching_cubes(vol1, level=lvl1, spacing=(dx, dy, dz))
+            verts2, faces2, _, _ = measure.marching_cubes(vol2, level=lvl2, spacing=(dx, dy, dz))
+            verts1 += np.array([mins[0], mins[1], mins[2]], dtype=np.float32)
+            verts2 += np.array([mins[0], mins[1], mins[2]], dtype=np.float32)
+            rendered = True
+        except Exception:
+            rendered = False
+
+    p1 = pts[np.abs(f1) <= eps1]
+    p2 = pts[np.abs(f2) <= eps2]
+    if len(p1) > int(cfg.surface_max_points):
+        p1 = p1[np.random.choice(len(p1), size=int(cfg.surface_max_points), replace=False)]
+    if len(p2) > int(cfg.surface_max_points):
+        p2 = p2[np.random.choice(len(p2), size=int(cfg.surface_max_points), replace=False)]
+
+    if intersection_points is not None and len(intersection_points) > 0:
+        cand = intersection_points.astype(np.float32)
+        with torch.no_grad():
+            fc = model(torch.from_numpy(cand).to(device))
+            if fc.dim() == 1:
+                fc = fc.unsqueeze(1)
+            hc = torch.linalg.norm(fc[:, :2], dim=1).detach().cpu().numpy()
+        p12 = cand[hc <= eps_h]
+    else:
+        p12 = pts[np.sqrt(f1 * f1 + f2 * f2) <= eps_h]
+    if len(p12) > 1200:
+        p12 = p12[np.random.choice(len(p12), size=1200, replace=False)]
+
+    train_plot = x_train
+    if len(train_plot) > int(cfg.plot_train_max_points):
+        train_plot = train_plot[np.random.choice(len(train_plot), size=int(cfg.plot_train_max_points), replace=False)]
+
+    def _latex_axis_label(lbl: str) -> str:
+        s = str(lbl).strip()
+        # q1 -> q_1 for paper-style math labels.
+        if len(s) >= 2 and s[0] in ("q", "x") and s[1:].isdigit():
+            return rf"${s[0]}_{{{s[1:]}}}$"
+        return s
+
+    def _draw_common(ax) -> None:
+        ax.scatter(
+            train_plot[:, 0], train_plot[:, 1], train_plot[:, 2],
+            s=4, c="#4b5563", alpha=0.28, label="Training data"
+        )
+        ax.set_xlabel(_latex_axis_label(axis_labels[0]), fontsize=8, labelpad=1)
+        ax.set_ylabel(_latex_axis_label(axis_labels[1]), fontsize=8, labelpad=1)
+        # Place q3 label near the top end of the z-axis itself.
+        ax.set_zlabel("")
+        z_pad = 0.03 * float(maxs[2] - mins[2])
+        x_pad = 0.02 * float(maxs[0] - mins[0])
+        y_pad = 0.02 * float(maxs[1] - mins[1])
+        ax.text(
+            float(maxs[0] + x_pad),
+            float(maxs[1] + y_pad),
+            float(maxs[2] + z_pad),
+            _latex_axis_label(axis_labels[2]),
+            fontsize=8,
+        )
+        # Pull tick labels closer to axes.
+        ax.tick_params(labelsize=7, pad=0)
+        ax.set_xlim(float(mins[0]), float(maxs[0]))
+        ax.set_ylim(float(mins[1]), float(maxs[1]))
+        ax.set_zlim(float(mins[2]), float(maxs[2]))
+        # Increase tick density so ticks are not too sparse/far apart.
+        ax.xaxis.set_major_locator(MaxNLocator(nbins=5))
+        ax.yaxis.set_major_locator(MaxNLocator(nbins=5))
+        ax.zaxis.set_major_locator(MaxNLocator(nbins=5))
+        ax.set_proj_type("persp")
+        ax.view_init(elev=28, azim=-42)
+
+    def _add_surface(ax, verts, faces, color: str, alpha: float, label: str) -> None:
+        poly = Poly3DCollection(
+            verts[faces],
+            alpha=alpha,
+            facecolor=color,
+            edgecolor=(0, 0, 0, 0.08),
+            linewidth=0.1,
+            label=label,
+        )
+        ax.add_collection3d(poly)
+
+    # Match paper boxplot compact typography style.
+    with plt.rc_context(
+        {
+            "font.size": 8,
+            "axes.labelsize": 8,
+            "xtick.labelsize": 7,
+            "ytick.labelsize": 7,
+            "legend.fontsize": 7,
+        }
+    ):
+        fig = plt.figure(figsize=(3.45, 2.9))
+        ax = fig.add_subplot(111, projection="3d")
+        h1_label = r"$h_1(x)$"
+        h2_label = r"$h_2(x)$"
+        int_label = "Learned equality constraint"
+
+        if rendered and verts1 is not None and faces1 is not None and verts2 is not None and faces2 is not None:
+            _add_surface(ax, verts1, faces1, "#22d3ee", 0.12, h1_label)
+            _add_surface(ax, verts2, faces2, "#f472b6", 0.12, h2_label)
+        else:
+            if len(p1) > 0:
+                ax.scatter(p1[:, 0], p1[:, 1], p1[:, 2], s=0.9, c="#22d3ee", alpha=0.20, label=h1_label)
+            if len(p2) > 0:
+                ax.scatter(p2[:, 0], p2[:, 1], p2[:, 2], s=0.9, c="#f472b6", alpha=0.20, label=h2_label)
+
+        # Learned equality constraint: scatter points.
+        if len(p12) > 0:
+            ax.scatter(
+                p12[:, 0], p12[:, 1], p12[:, 2],
+                s=1.25, c="#ef4444", alpha=0.90, depthshade=False, linewidths=0.0, label=int_label
+            )
+
+        _draw_common(ax)
+
+        # No title for paper style.
+        ax.legend(loc="upper left", fontsize=7, frameon=False)
+
+        # Keep right margin so z-label is visible.
+        fig.subplots_adjust(left=0.005, right=0.995, bottom=0.005, top=0.998)
+        fig.savefig(out_path, dpi=300, bbox_inches="tight", pad_inches=0.0)
+        plt.close(fig)
 
 
 def _plot_highdim_pca(
