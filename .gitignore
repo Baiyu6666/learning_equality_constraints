@@ -1,1 +1,43 @@
-/wandb/
+# Python cache and build artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.iml
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs and local runtime files
+*.log
+
+# Experiment outputs and local tracking
+wandb/
+
+# Generated datasets and cached assets
+datasets/generated/
+
+# Media generated during analysis/debugging
+*.gif
+
+# Vendored third-party data artifacts
+smp_manifold_learning-master/**/*.npy

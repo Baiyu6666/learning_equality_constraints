@@ -14,7 +14,7 @@ _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Keep local W&B files under repo-root/wandb regardless of launch cwd.
 os.environ["WANDB_DIR"] = os.path.join(_PROJECT_ROOT, "wandb")
 
-from common.unified_experiment import VALID_METHODS, run_one
+from experiments.unified_experiment import VALID_METHODS, run_one
 
 try:
     import wandb  # type: ignore
@@ -36,7 +36,7 @@ def _resolve_config_root(config_root: str) -> str:
 def _resolve_outdir(outdir: str) -> str:
     p = str(outdir).strip()
     if not p:
-        p = "outputs_unified/sweeps"
+        p = "outputs/sweeps"
     if os.path.isabs(p):
         return p
     return os.path.join(_PROJECT_ROOT, p)
@@ -254,9 +254,9 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument("--datasets", required=True)
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--config-root", default="configs")
-    p.add_argument("--outdir", default="outputs_unified/sweeps")
+    p.add_argument("--outdir", default="outputs/sweeps")
     p.add_argument("--override", action="append", default=[])
-    p.add_argument("--method-tag-prefix", default="method", help="wandb tag prefix, e.g. method:eikonal")
+    p.add_argument("--method-tag-prefix", default="method", help="wandb tag prefix, e.g. method:oncl")
 
     return p
 

@@ -15,7 +15,7 @@ _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Keep local W&B files under repo-root/wandb regardless of launch cwd.
 os.environ["WANDB_DIR"] = os.path.join(_PROJECT_ROOT, "wandb")
 
-from common.unified_experiment import VALID_METHODS, run_one
+from experiments.unified_experiment import VALID_METHODS, run_one
 
 try:
     import wandb  # type: ignore
@@ -37,7 +37,7 @@ def _resolve_config_root(config_root: str) -> str:
 def _resolve_outdir(outdir: str) -> str:
     p = str(outdir).strip()
     if not p:
-        p = "outputs_unified"
+        p = "outputs"
     if os.path.isabs(p):
         return p
     return os.path.join(_PROJECT_ROOT, p)
@@ -192,17 +192,17 @@ def _with_default_non_gif_overrides(overrides: list[str]) -> list[str]:
 
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Run benchmark suite over methods and datasets")
-    p.add_argument("--methods", default="eikonal", help="comma-separated methods")
+    p.add_argument("--methods", default="oncl", help="comma-separated methods")
     p.add_argument("--datasets", default="6d_workspace_sine_surface_pose", help="comma-separated datasets")
     p.add_argument("--seeds", default="10", help="comma-separated seeds; empty means no seed override")
-    p.add_argument("--outdir", default="outputs_unified")
+    p.add_argument("--outdir", default="outputs")
     p.add_argument("-clearn_dir", "--clearn_dir", action="store_true", help="if outdir is non-empty, ask once for confirmation (type 1) then clear it")
     p.add_argument("-resume", "--resume", action="store_true", help="incrementally append to an existing outdir and skip completed runs")
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
 
     p.add_argument("--wandb-enable", action="store_true", default=True)
-    p.add_argument("--wandb-project", default="equality_manifold_unified")
+    p.add_argument("--wandb-project", default="LearnEqConstraints")
     p.add_argument("--wandb-entity", default="")
     p.add_argument("--wandb-run-name", default="")
     return p

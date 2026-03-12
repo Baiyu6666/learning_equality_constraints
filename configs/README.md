@@ -13,16 +13,16 @@ Priority (low -> high):
 
 Supported methods:
 
-- `eikonal`
+- `oncl`
 - `margin`
-- `delta`
+- `dataaug`
 - `vae`
 
 Examples:
 
-- `methods/eikonal.json`
+- `methods/oncl.json`
 - `datasets/3d_planar_arm_line_n3.json`
-- `method_dataset/eikonal_3d_planar_arm_line_n3.json`
+- `method_dataset/oncl_3d_planar_arm_line_n3.json`
 
 Current project policy for `n_train` is controlled at dataset layer (`configs/datasets/*.json`):
 
@@ -54,7 +54,7 @@ Use `runners/run_sweep.py` so one sweep trial runs all target datasets for one m
 Example:
 
 ```bash
-python -m runners.run_sweep_launch --yaml configs/sweeps/eikonal_multids.yaml
+python -m runners.run_sweep_launch --yaml configs/sweeps/oncl_multids.yaml
 ```
 
 In the sweep YAML:
@@ -63,7 +63,7 @@ In the sweep YAML:
 - Use sweep parameter `seed` and pass `--seed ${seed}` in `command`. This creates one run per seed.
 - Sweep parameters (e.g. `lr`, `epochs`) are automatically converted to config overrides.
 - Dataset-specific sweep key format: `ds__<dataset>__<param>` (example: `ds__3d_spiral__proj_steps`).
-- Method-specific sweep key format: `m__<method>__<param>` (example: `m__eikonal__lam_eikonal`).
+- Method-specific sweep key format: `m__<method>__<param>` (example: `m__oncl__lam_oncl`).
 - Method+dataset-specific sweep key format: `m__<method>__ds__<dataset>__<param>`.
 - Each trial adds a method tag to W&B: `method:<method>` (customizable via `--method-tag-prefix`).
 - Recommended sweep algorithm here is `method: grid`.

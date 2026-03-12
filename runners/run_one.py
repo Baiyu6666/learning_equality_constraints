@@ -11,7 +11,7 @@ _PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 # Keep local W&B files under repo-root/wandb regardless of launch cwd.
 os.environ["WANDB_DIR"] = os.path.join(_PROJECT_ROOT, "wandb")
 
-from common.unified_experiment import VALID_METHODS, run_one
+from experiments.unified_experiment import VALID_METHODS, run_one
 
 try:
     import wandb  # type: ignore
@@ -33,7 +33,7 @@ def _resolve_config_root(config_root: str) -> str:
 def _resolve_outdir(outdir: str) -> str:
     p = str(outdir).strip()
     if not p:
-        p = "outputs_unified"
+        p = "outputs"
     if os.path.isabs(p):
         return p
     return os.path.join(_PROJECT_ROOT, p)
@@ -134,14 +134,14 @@ def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Run one method-dataset experiment")
     p.add_argument("--method", required=True, choices=sorted(VALID_METHODS))
     p.add_argument("--dataset", required=True)
-    p.add_argument("--outdir", default="outputs_unified")
+    p.add_argument("--outdir", default="outputs")
     p.add_argument("-retrain", "--retrain", action="store_true", help="clear non-empty outdir before running")
     p.add_argument("--seed", type=int, default=None)
     p.add_argument("--config-root", default="configs")
     p.add_argument("--override", action="append", default=[], help="dotted key=value override")
 
     p.add_argument("--wandb-enable", action="store_true")
-    p.add_argument("--wandb-project", default="equality_manifold_unified")
+    p.add_argument("--wandb-project", default="LearnEqConstraints")
     p.add_argument("--wandb-entity", default="")
     p.add_argument("--wandb-run-name", default="")
     return p

@@ -1,0 +1,11 @@
+{
+  "epochs": 400,
+  "lr": 0.003,
+  "lam_oncl": 0.1,
+  "lam_oncl_ortho": 1,
+  "projector": {
+    "steps": 120,
+    "min_steps": 30
+  },
+  "codim_auto_k_neighbors": 16
+}
