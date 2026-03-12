@@ -51,6 +51,8 @@ from common.plot_common import plot_planned_paths_3d
 from methods.vector_eikonal.plots import (
     _plot_constraint_surface_paper_3d,
     _plot_constraint_2d,
+    _plot_dual_arm_guided_insertion_orientation_3d,
+    _plot_dual_arm_pose_projection_error_distributions,
     _plot_training_diagnostics,
     _plot_zero_surfaces_3d,
     _plot_ur5_eval_projection_workspace_orientation_3d,
@@ -63,6 +65,10 @@ from evaluator.evaluator import eval_bounds_from_train, resolve_gt_grid
 from common.config_loader import apply_overrides, load_layered_config
 
 VALID_METHODS = {"eikonal", "eikonal_single", "margin", "delta", "vae", "ecomann"}
+DUAL_ARM_12D_DATASETS = {
+    "12d_dual_arm",
+    "12d_dual_arm_traj",
+}
 ARM_UP_6D_DATASETS = {
     "6d_spatial_arm_up_n6",
     "6d_spatial_arm_up_n6_py",
@@ -995,6 +1001,28 @@ def run_eikonal_one(
             out_path=out_err,
             title=f"{dataset} ({method_name}): projection errors before/after",
         )
+    if str(dataset) in DUAL_ARM_12D_DATASETS:
+        out_pose = os.path.join(outdir, f"{dataset}_{method_tag}_dual_arm_guided_insertion_orientation.png")
+        _plot_dual_arm_guided_insertion_orientation_3d(
+            x_train=x_train,
+            eval_proj=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_pose,
+            title=f"{dataset} ({method_name}): dual-arm guided insertion poses",
+        )
+        out_err = os.path.join(outdir, f"{dataset}_{method_tag}_dual_arm_pose_proj_error_distributions.png")
+        _plot_dual_arm_pose_projection_error_distributions(
+            x_before=eval_artifacts.get("x_eval", np.zeros((0, 12), dtype=np.float32)),
+            x_after=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_err,
+            title=f"{dataset} ({method_name}): dual-arm projection errors before/after",
+            grasp_span=float(getattr(cfg, "dual_arm_grasp_span", 1.0)),
+            x_span=float(getattr(cfg, "dual_arm_curve_x_span", 1.4)),
+            y_amp=float(getattr(cfg, "dual_arm_curve_y_amp", 0.55)),
+            y_freq=float(getattr(cfg, "dual_arm_curve_y_freq", 1.0)),
+            z_base=float(getattr(cfg, "dual_arm_curve_z_base", 0.2)),
+            z_amp=float(getattr(cfg, "dual_arm_curve_z_amp", 0.35)),
+            z_freq=float(getattr(cfg, "dual_arm_curve_z_freq", 0.7)),
+        )
     if dataset in ARM_UP_6D_DATASETS:
         out_dist = os.path.join(outdir, f"{dataset}_{method_tag}_proj_value_distribution.png")
         _plot_ur5_projection_error_distribution_from_pairs(
@@ -1172,6 +1200,28 @@ def run_udf_one(
             x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
             out_path=out_err,
             title=f"{dataset} ({method}): projection errors before/after",
+        )
+    if str(dataset) in DUAL_ARM_12D_DATASETS:
+        out_pose = os.path.join(outdir, f"{dataset}_{method}_dual_arm_guided_insertion_orientation.png")
+        _plot_dual_arm_guided_insertion_orientation_3d(
+            x_train=x_train,
+            eval_proj=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_pose,
+            title=f"{dataset} ({method}): dual-arm guided insertion poses",
+        )
+        out_err = os.path.join(outdir, f"{dataset}_{method}_dual_arm_pose_proj_error_distributions.png")
+        _plot_dual_arm_pose_projection_error_distributions(
+            x_before=eval_artifacts.get("x_eval", np.zeros((0, 12), dtype=np.float32)),
+            x_after=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_err,
+            title=f"{dataset} ({method}): dual-arm projection errors before/after",
+            grasp_span=float(getattr(cfg, "dual_arm_grasp_span", 1.0)),
+            x_span=float(getattr(cfg, "dual_arm_curve_x_span", 1.4)),
+            y_amp=float(getattr(cfg, "dual_arm_curve_y_amp", 0.55)),
+            y_freq=float(getattr(cfg, "dual_arm_curve_y_freq", 1.0)),
+            z_base=float(getattr(cfg, "dual_arm_curve_z_base", 0.2)),
+            z_amp=float(getattr(cfg, "dual_arm_curve_z_amp", 0.35)),
+            z_freq=float(getattr(cfg, "dual_arm_curve_z_freq", 0.7)),
         )
 
     eval_path = os.path.join(outdir, f"{dataset}_{method}_eval.json")
@@ -1368,6 +1418,28 @@ def run_ecomann_one(
             x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
             out_path=out_err,
             title=f"{dataset} (ecomann): projection errors before/after",
+        )
+    if str(dataset) in DUAL_ARM_12D_DATASETS:
+        out_pose = os.path.join(outdir, f"{dataset}_ecomann_dual_arm_guided_insertion_orientation.png")
+        _plot_dual_arm_guided_insertion_orientation_3d(
+            x_train=x_train,
+            eval_proj=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_pose,
+            title=f"{dataset} (ecomann): dual-arm guided insertion poses",
+        )
+        out_err = os.path.join(outdir, f"{dataset}_ecomann_dual_arm_pose_proj_error_distributions.png")
+        _plot_dual_arm_pose_projection_error_distributions(
+            x_before=eval_artifacts.get("x_eval", np.zeros((0, 12), dtype=np.float32)),
+            x_after=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_err,
+            title=f"{dataset} (ecomann): dual-arm projection errors before/after",
+            grasp_span=float(getattr(cfg, "dual_arm_grasp_span", 1.0)),
+            x_span=float(getattr(cfg, "dual_arm_curve_x_span", 1.4)),
+            y_amp=float(getattr(cfg, "dual_arm_curve_y_amp", 0.55)),
+            y_freq=float(getattr(cfg, "dual_arm_curve_y_freq", 1.0)),
+            z_base=float(getattr(cfg, "dual_arm_curve_z_base", 0.2)),
+            z_amp=float(getattr(cfg, "dual_arm_curve_z_amp", 0.35)),
+            z_freq=float(getattr(cfg, "dual_arm_curve_z_freq", 0.7)),
         )
 
     eval_path = os.path.join(outdir, f"{dataset}_ecomann_eval.json")
@@ -1872,6 +1944,28 @@ def run_vae_one(
             x_after=eval_artifacts.get("proj", np.zeros((0, 6), dtype=np.float32)),
             out_path=out_err,
             title=f"{dataset} (vae): projection errors before/after",
+        )
+    if str(dataset) in DUAL_ARM_12D_DATASETS:
+        out_pose = os.path.join(outdir, f"{dataset}_vae_dual_arm_guided_insertion_orientation.png")
+        _plot_dual_arm_guided_insertion_orientation_3d(
+            x_train=x_train,
+            eval_proj=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_pose,
+            title=f"{dataset} (vae): dual-arm guided insertion poses",
+        )
+        out_err = os.path.join(outdir, f"{dataset}_vae_dual_arm_pose_proj_error_distributions.png")
+        _plot_dual_arm_pose_projection_error_distributions(
+            x_before=eval_artifacts.get("x_eval", np.zeros((0, 12), dtype=np.float32)),
+            x_after=eval_artifacts.get("proj", np.zeros((0, 12), dtype=np.float32)),
+            out_path=out_err,
+            title=f"{dataset} (vae): dual-arm projection errors before/after",
+            grasp_span=float(getattr(cfg, "dual_arm_grasp_span", 1.0)),
+            x_span=float(getattr(cfg, "dual_arm_curve_x_span", 1.4)),
+            y_amp=float(getattr(cfg, "dual_arm_curve_y_amp", 0.55)),
+            y_freq=float(getattr(cfg, "dual_arm_curve_y_freq", 1.0)),
+            z_base=float(getattr(cfg, "dual_arm_curve_z_base", 0.2)),
+            z_amp=float(getattr(cfg, "dual_arm_curve_z_amp", 0.35)),
+            z_freq=float(getattr(cfg, "dual_arm_curve_z_freq", 0.7)),
         )
 
     eval_path = os.path.join(outdir, f"{dataset}_vae_eval.json")

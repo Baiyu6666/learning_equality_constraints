@@ -55,7 +55,8 @@ EVAL_DATASET_OVERRIDES: dict[str, dict[str, Any]] = {
     "6d_spatial_arm_up_n6_py": {},
     "6d_workspace_sine_surface_pose": {},
     "6d_workspace_sine_surface_pose_traj": {},
-    "12d_dual_arm_pose_yoffset_samex_plane_sameori": {},
+    "12d_dual_arm": {},
+    "12d_dual_arm_traj": {},
 }
 
 
@@ -326,10 +327,67 @@ def _workspace_pose_analytic_dist_embed(embed_xyz_zaxis: np.ndarray) -> np.ndarr
     return d
 
 
-def _dual_arm_pose_params(cfg: Any) -> tuple[float, float]:
-    y_offset = float(getattr(cfg, "dual_arm_y_offset", 1.0))
-    z_plane = float(getattr(cfg, "dual_arm_z_plane", 0.25))
-    return y_offset, z_plane
+def _dual_arm_pose_params(cfg: Any) -> dict[str, float]:
+    return {
+        "grasp_span": float(getattr(cfg, "dual_arm_grasp_span", 1.0)),
+        "x_span": float(getattr(cfg, "dual_arm_curve_x_span", 1.4)),
+        "y_amp": float(getattr(cfg, "dual_arm_curve_y_amp", 0.55)),
+        "y_freq": float(getattr(cfg, "dual_arm_curve_y_freq", 1.0)),
+        "z_base": float(getattr(cfg, "dual_arm_curve_z_base", 0.2)),
+        "z_amp": float(getattr(cfg, "dual_arm_curve_z_amp", 0.35)),
+        "z_freq": float(getattr(cfg, "dual_arm_curve_z_freq", 0.7)),
+    }
+
+
+def _rpy_zyx_to_rotmat_batch(rpy: np.ndarray) -> np.ndarray:
+    rr = rpy[:, 0].astype(np.float32)
+    pp = rpy[:, 1].astype(np.float32)
+    yy = rpy[:, 2].astype(np.float32)
+    cr = np.cos(rr)
+    sr = np.sin(rr)
+    cp = np.cos(pp)
+    sp = np.sin(pp)
+    cy = np.cos(yy)
+    sy = np.sin(yy)
+    R = np.zeros((len(rpy), 3, 3), dtype=np.float32)
+    R[:, 0, 0] = cy * cp
+    R[:, 0, 1] = cy * sp * sr - sy * cr
+    R[:, 0, 2] = cy * sp * cr + sy * sr
+    R[:, 1, 0] = sy * cp
+    R[:, 1, 1] = sy * sp * sr + cy * cr
+    R[:, 1, 2] = sy * sp * cr - cy * sr
+    R[:, 2, 0] = -sp
+    R[:, 2, 1] = cp * sr
+    R[:, 2, 2] = cp * cr
+    return R.astype(np.float32)
+
+
+def _dual_arm_curve_center_tnb_from_s(s: np.ndarray, cfg: Any) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    p = _dual_arm_pose_params(cfg)
+    ss = s.astype(np.float32)
+    x = (p["x_span"] * ss).astype(np.float32)
+    y = (p["y_amp"] * np.sin(p["y_freq"] * np.pi * ss)).astype(np.float32)
+    z = (p["z_base"] + p["z_amp"] * np.cos(p["z_freq"] * np.pi * ss)).astype(np.float32)
+    dx = np.full_like(ss, p["x_span"], dtype=np.float32)
+    dy = (p["y_amp"] * p["y_freq"] * np.pi * np.cos(p["y_freq"] * np.pi * ss)).astype(np.float32)
+    dz = (-p["z_amp"] * p["z_freq"] * np.pi * np.sin(p["z_freq"] * np.pi * ss)).astype(np.float32)
+
+    center = np.stack([x, y, z], axis=1).astype(np.float32)
+    tang = np.stack([dx, dy, dz], axis=1).astype(np.float32)
+    tang /= (np.linalg.norm(tang, axis=1, keepdims=True) + 1e-12)
+
+    ref_up = np.tile(np.array([0.0, 0.0, 1.0], dtype=np.float32), (len(ss), 1))
+    alt_up = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (len(ss), 1))
+    use_alt = np.abs(np.sum(tang * ref_up, axis=1)) > 0.95
+    ref = ref_up.copy()
+    ref[use_alt] = alt_up[use_alt]
+    normal = ref - np.sum(ref * tang, axis=1, keepdims=True) * tang
+    normal /= (np.linalg.norm(normal, axis=1, keepdims=True) + 1e-12)
+    binormal = np.cross(tang, normal).astype(np.float32)
+    binormal /= (np.linalg.norm(binormal, axis=1, keepdims=True) + 1e-12)
+    normal = np.cross(binormal, tang).astype(np.float32)
+    normal /= (np.linalg.norm(normal, axis=1, keepdims=True) + 1e-12)
+    return center.astype(np.float32), tang.astype(np.float32), normal.astype(np.float32), binormal.astype(np.float32)
 
 
 def _dual_arm_pose_embed_raw(x_raw: np.ndarray) -> np.ndarray:
@@ -345,20 +403,51 @@ def _dual_arm_pose_embed_raw(x_raw: np.ndarray) -> np.ndarray:
 
 def _dual_arm_pose_analytic_target_raw(x_raw: np.ndarray, cfg: Any) -> np.ndarray:
     x = x_raw.astype(np.float32)
-    y_offset, z_plane = _dual_arm_pose_params(cfg)
+    p = _dual_arm_pose_params(cfg)
 
-    x_common = (0.5 * (x[:, 0] + x[:, 6])).astype(np.float32)
-    y_center = (0.5 * (x[:, 1] + x[:, 7])).astype(np.float32)
-    y1 = (y_center - 0.5 * y_offset).astype(np.float32)
-    y2 = (y_center + 0.5 * y_offset).astype(np.float32)
-    z = np.full_like(x_common, z_plane, dtype=np.float32)
+    center_obs = (0.5 * (x[:, 0:3] + x[:, 6:9])).astype(np.float32)
+    s_grid = np.linspace(-1.0, 1.0, 2048, dtype=np.float32)
+    center_grid, _, _, _ = _dual_arm_curve_center_tnb_from_s(s_grid, cfg)
+    d2 = np.sum((center_obs[:, None, :] - center_grid[None, :, :]) ** 2, axis=2)
+    idx = np.argmin(d2, axis=1)
+    s_star = s_grid[idx].astype(np.float32)
 
-    ang_1 = x[:, 3:6].astype(np.float32)
-    ang_2 = x[:, 9:12].astype(np.float32)
-    ang_shared = np.arctan2(np.sin(ang_1) + np.sin(ang_2), np.cos(ang_1) + np.cos(ang_2)).astype(np.float32)
+    center, tang, normal, binormal = _dual_arm_curve_center_tnb_from_s(s_star, cfg)
+    R_obs_1 = _rpy_zyx_to_rotmat_batch(x[:, 3:6].astype(np.float32))
+    R_obs_2 = _rpy_zyx_to_rotmat_batch(x[:, 9:12].astype(np.float32))
+    y_obs = (R_obs_1[:, :, 1] + R_obs_2[:, :, 1]).astype(np.float32)
+    y_obs /= (np.linalg.norm(y_obs, axis=1, keepdims=True) + 1e-12)
+    phi = np.arctan2(np.sum(y_obs * binormal, axis=1), np.sum(y_obs * normal, axis=1)).astype(np.float32)
 
-    pose_1 = np.concatenate([x_common[:, None], y1[:, None], z[:, None], ang_shared], axis=1).astype(np.float32)
-    pose_2 = np.concatenate([x_common[:, None], y2[:, None], z[:, None], ang_shared], axis=1).astype(np.float32)
+    c = np.cos(phi)[:, None].astype(np.float32)
+    s = np.sin(phi)[:, None].astype(np.float32)
+    y_axis = c * normal + s * binormal
+    z_axis = -s * normal + c * binormal
+    y_axis /= (np.linalg.norm(y_axis, axis=1, keepdims=True) + 1e-12)
+    z_axis = np.cross(tang, y_axis).astype(np.float32)
+    z_axis /= (np.linalg.norm(z_axis, axis=1, keepdims=True) + 1e-12)
+    y_axis = np.cross(z_axis, tang).astype(np.float32)
+    y_axis /= (np.linalg.norm(y_axis, axis=1, keepdims=True) + 1e-12)
+
+    R_tgt = np.stack([tang, y_axis, z_axis], axis=2).astype(np.float32)
+    sy = -np.clip(R_tgt[:, 2, 0], -1.0, 1.0)
+    pitch = np.arcsin(sy).astype(np.float32)
+    cp = np.cos(pitch)
+    roll = np.where(
+        np.abs(cp) > 1e-8,
+        np.arctan2(R_tgt[:, 2, 1], R_tgt[:, 2, 2]),
+        0.0,
+    ).astype(np.float32)
+    yaw = np.where(
+        np.abs(cp) > 1e-8,
+        np.arctan2(R_tgt[:, 1, 0], R_tgt[:, 0, 0]),
+        np.arctan2(-R_tgt[:, 0, 1], R_tgt[:, 1, 1]),
+    ).astype(np.float32)
+    rpy = np.stack([roll, pitch, yaw], axis=1).astype(np.float32)
+
+    offset = (0.5 * p["grasp_span"] * tang).astype(np.float32)
+    pose_1 = np.concatenate([center - offset, rpy], axis=1).astype(np.float32)
+    pose_2 = np.concatenate([center + offset, rpy], axis=1).astype(np.float32)
     return np.concatenate([pose_1, pose_2], axis=1).astype(np.float32)
 
 
@@ -479,7 +568,7 @@ def evaluate_projection_metrics(
         and embed_fn is not None
     )
     use_dual_arm_workspace_analytic = (
-        str(dataset_name) == "12d_dual_arm_pose_yoffset_samex_plane_sameori"
+        str(dataset_name) in ("12d_dual_arm", "12d_dual_arm_traj")
         and embed_fn is not None
     )
 

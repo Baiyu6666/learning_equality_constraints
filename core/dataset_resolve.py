@@ -64,7 +64,8 @@ BASE_6D_DATASETS = [
 ]
 
 BASE_12D_DATASETS = [
-    "12d_dual_arm_pose_yoffset_samex_plane_sameori",
+    "12d_dual_arm",
+    "12d_dual_arm_traj",
 ]
 
 
@@ -926,7 +927,7 @@ def resolve_dataset(
             "grid": _as_float32(grid),
             "data_dim": 12,
             "axis_labels": ("x1", "y1", "z1", "roll1", "pitch1", "yaw1", "x2", "y2", "z2", "roll2", "pitch2", "yaw2"),
-            "true_codim": 7,
+            "true_codim": 10,
             "periodic_joint": False,
         }
     if name.startswith("3d_vz_") and name.endswith("_traj"):

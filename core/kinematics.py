@@ -14,7 +14,8 @@ def is_workspace_pose_dataset(name: str) -> bool:
     return str(name) in (
         "6d_workspace_sine_surface_pose",
         "6d_workspace_sine_surface_pose_traj",
-        "12d_dual_arm_pose_yoffset_samex_plane_sameori",
+        "12d_dual_arm",
+        "12d_dual_arm_traj",
     )
 
 
@@ -142,7 +143,7 @@ def workspace_embed_for_eval(
         # Arm-up datasets are orientation-constrained; evaluate in orientation space only.
         tool = spatial_tool_axis_n6(q, use_pybullet=ur5_use_pybullet_n6)
         return tool.astype(np.float32)
-    if base_name == "12d_dual_arm_pose_yoffset_samex_plane_sameori" and q.shape[1] >= 12:
+    if base_name == "12d_dual_arm" and q.shape[1] >= 12:
         pose_1 = q[:, :6].astype(np.float32)
         pose_2 = q[:, 6:12].astype(np.float32)
 

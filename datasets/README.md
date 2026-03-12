@@ -34,7 +34,7 @@ Dataset summary (explicit names):
 | `6d_spatial_arm_up_n6`    |        6 |     2 | 6-DoF UR5-style arm upward-orientation set (pybullet backend)              |
 | `6d_spatial_arm_up_n6_py` |        6 |     2 | 6-DoF UR5-style arm upward-orientation set (analytic backend)              |
 | `6d_workspace_sine_surface_pose` | 6 | 3 | Workspace pose `[x,y,z,roll,pitch,yaw]`: position on sine-wave surface, local z-axis aligned with surface normal, free spin around normal |
-| `12d_dual_arm_pose_yoffset_samex_plane_sameori` | 12 | 7 | Dual-arm workspace pose `[pose1(6), pose2(6)]`: `x1=x2`, `y2-y1=const`, `z1=z2=z_plane`, and both end-effector orientations are identical |
+| `12d_dual_arm` | 12 | 10 | Dual-arm guided-insertion pose `[pose1(6), pose2(6)]`: both end-effectors rigidly grasp the same object, whose center follows a fixed guide curve and may roll around the guide tangent |
 
 Derived naming rules:
 - `3d_vz_<base_2d_dataset>`: lift 2D base dataset to 3D with varying `z(x,y)` (`data_dim=3`, `codim=2`).

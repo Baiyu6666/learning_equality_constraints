@@ -755,41 +755,140 @@ def _workspace_sine_surface_pose_n6_traj(cfg) -> Tuple[np.ndarray, np.ndarray]:
     return x_train, grid.astype(np.float32)
 
 
+def _dual_arm_guided_insertion_curve(
+    s: np.ndarray,
+    *,
+    x_span: float,
+    y_amp: float,
+    y_freq: float,
+    z_base: float,
+    z_amp: float,
+    z_freq: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    ss = s.astype(np.float32)
+    x = (float(x_span) * ss).astype(np.float32)
+    y = (float(y_amp) * np.sin(float(y_freq) * np.pi * ss)).astype(np.float32)
+    z = (float(z_base) + float(z_amp) * np.cos(float(z_freq) * np.pi * ss)).astype(np.float32)
+
+    dx = np.full_like(ss, float(x_span), dtype=np.float32)
+    dy = (float(y_amp) * float(y_freq) * np.pi * np.cos(float(y_freq) * np.pi * ss)).astype(np.float32)
+    dz = (-float(z_amp) * float(z_freq) * np.pi * np.sin(float(z_freq) * np.pi * ss)).astype(np.float32)
+
+    pos = np.stack([x, y, z], axis=1).astype(np.float32)
+    tan = np.stack([dx, dy, dz], axis=1).astype(np.float32)
+    tan /= (np.linalg.norm(tan, axis=1, keepdims=True) + 1e-12)
+    return pos, tan
+
+
+def _dual_arm_guided_insertion_frame(
+    s: np.ndarray,
+    *,
+    x_span: float,
+    y_amp: float,
+    y_freq: float,
+    z_base: float,
+    z_amp: float,
+    z_freq: float,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    pos, tan = _dual_arm_guided_insertion_curve(
+        s,
+        x_span=x_span,
+        y_amp=y_amp,
+        y_freq=y_freq,
+        z_base=z_base,
+        z_amp=z_amp,
+        z_freq=z_freq,
+    )
+    ref_up = np.tile(np.array([0.0, 0.0, 1.0], dtype=np.float32), (len(s), 1))
+    alt_up = np.tile(np.array([0.0, 1.0, 0.0], dtype=np.float32), (len(s), 1))
+    use_alt = np.abs(np.sum(tan * ref_up, axis=1)) > 0.95
+    ref = ref_up.copy()
+    ref[use_alt] = alt_up[use_alt]
+
+    normal = ref - np.sum(ref * tan, axis=1, keepdims=True) * tan
+    normal /= (np.linalg.norm(normal, axis=1, keepdims=True) + 1e-12)
+    binormal = np.cross(tan, normal).astype(np.float32)
+    binormal /= (np.linalg.norm(binormal, axis=1, keepdims=True) + 1e-12)
+    normal = np.cross(binormal, tan).astype(np.float32)
+    normal /= (np.linalg.norm(normal, axis=1, keepdims=True) + 1e-12)
+    return pos.astype(np.float32), tan.astype(np.float32), normal.astype(np.float32), binormal.astype(np.float32)
+
+
 def _dual_arm_pose_yoffset_samex_plane_sameori_n12(cfg) -> Tuple[np.ndarray, np.ndarray]:
-    # 12D dual-arm workspace pose:
-    # [x1, y1, z1, r1, p1, y1aw, x2, y2, z2, r2, p2, y2aw]
-    # Constraints:
-    # 1) x1 == x2
-    # 2) y2 - y1 == const
-    # 3) z1 == z2 == const plane height
-    # 4) (roll, pitch, yaw)_1 == (roll, pitch, yaw)_2
-    y_offset = float(getattr(cfg, "dual_arm_y_offset", 1.0))
-    z_plane = float(getattr(cfg, "dual_arm_z_plane", 0.25))
-    x_range = float(getattr(cfg, "dual_arm_x_range", 1.8))
-    y_center_range = float(getattr(cfg, "dual_arm_y_center_range", 1.2))
-    pitch_limit = float(getattr(cfg, "dual_arm_pitch_limit", 1.2))
+    # Reuse dataset name, but now define a task-meaningful dual-arm guided insertion manifold.
+    # x = [ee1_pose(6), ee2_pose(6)] with end-effectors rigidly attached to the same object.
+    # The object follows a fixed guide curve parameterized by s and may roll by phi around
+    # the guide tangent. Free variables: (s, phi), so manifold dim = 2, true codim = 10.
+    grasp_span = float(getattr(cfg, "dual_arm_grasp_span", 1.0))
+    x_span = float(getattr(cfg, "dual_arm_curve_x_span", 1.4))
+    y_amp = float(getattr(cfg, "dual_arm_curve_y_amp", 0.55))
+    y_freq = float(getattr(cfg, "dual_arm_curve_y_freq", 1.0))
+    z_base = float(getattr(cfg, "dual_arm_curve_z_base", 0.2))
+    z_amp = float(getattr(cfg, "dual_arm_curve_z_amp", 0.35))
+    z_freq = float(getattr(cfg, "dual_arm_curve_z_freq", 0.7))
 
     def _sample(n: int, seed_offset: int) -> np.ndarray:
         rng = np.random.default_rng(int(cfg.seed) + seed_offset)
-        x_common = rng.uniform(-x_range, x_range, size=(n,)).astype(np.float32)
-        y_center = rng.uniform(-y_center_range, y_center_range, size=(n,)).astype(np.float32)
-        y1 = (y_center - 0.5 * y_offset).astype(np.float32)
-        y2 = (y_center + 0.5 * y_offset).astype(np.float32)
-        z1 = np.full((n,), z_plane, dtype=np.float32)
-        z2 = np.full((n,), z_plane, dtype=np.float32)
+        s = rng.uniform(-1.0, 1.0, size=(n,)).astype(np.float32)
+        phi = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float32)
 
-        roll = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float32)
-        pitch = rng.uniform(-pitch_limit, pitch_limit, size=(n,)).astype(np.float32)
-        yaw = rng.uniform(-math.pi, math.pi, size=(n,)).astype(np.float32)
-        rpy = _wrap_to_pi(np.stack([roll, pitch, yaw], axis=1).astype(np.float32))
+        center, tang, normal, binormal = _dual_arm_guided_insertion_frame(
+            s,
+            x_span=x_span,
+            y_amp=y_amp,
+            y_freq=y_freq,
+            z_base=z_base,
+            z_amp=z_amp,
+            z_freq=z_freq,
+        )
 
-        pose_1 = np.concatenate([x_common[:, None], y1[:, None], z1[:, None], rpy], axis=1).astype(np.float32)
-        pose_2 = np.concatenate([x_common[:, None], y2[:, None], z2[:, None], rpy], axis=1).astype(np.float32)
+        c = np.cos(phi)[:, None].astype(np.float32)
+        ss = np.sin(phi)[:, None].astype(np.float32)
+        y_axis = c * normal + ss * binormal
+        z_axis = -ss * normal + c * binormal
+        y_axis /= (np.linalg.norm(y_axis, axis=1, keepdims=True) + 1e-12)
+        z_axis = np.cross(tang, y_axis).astype(np.float32)
+        z_axis /= (np.linalg.norm(z_axis, axis=1, keepdims=True) + 1e-12)
+        y_axis = np.cross(z_axis, tang).astype(np.float32)
+        y_axis /= (np.linalg.norm(y_axis, axis=1, keepdims=True) + 1e-12)
+
+        offset = (0.5 * float(grasp_span) * tang).astype(np.float32)
+        pos_1 = (center - offset).astype(np.float32)
+        pos_2 = (center + offset).astype(np.float32)
+
+        rpy = np.zeros((n, 3), dtype=np.float32)
+        for i in range(n):
+            R = np.stack([tang[i], y_axis[i], z_axis[i]], axis=1).astype(np.float64)
+            rpy[i] = _rpy_from_rotmat_zyx(R)
+        rpy = _wrap_to_pi(rpy.astype(np.float32))
+
+        pose_1 = np.concatenate([pos_1, rpy], axis=1).astype(np.float32)
+        pose_2 = np.concatenate([pos_2, rpy], axis=1).astype(np.float32)
         return np.concatenate([pose_1, pose_2], axis=1).astype(np.float32)
 
     x_train = _sample(max(1, int(cfg.n_train)), seed_offset=0)
     grid = _sample(max(1, int(cfg.n_grid)), seed_offset=1)
     return x_train, grid
+
+
+def _workspace_pose_rpy_embed(x: np.ndarray) -> np.ndarray:
+    q = np.asarray(x, dtype=np.float32)
+    if q.ndim != 2 or q.shape[1] < 6:
+        return q.astype(np.float32, copy=False)
+    blocks = []
+    for base in range(0, q.shape[1], 6):
+        if base + 6 <= q.shape[1]:
+            pos = q[:, base : base + 3]
+            rpy = q[:, base + 3 : base + 6]
+            blocks.append(
+                np.concatenate(
+                    [pos, np.sin(rpy).astype(np.float32), np.cos(rpy).astype(np.float32)],
+                    axis=1,
+                ).astype(np.float32)
+            )
+        else:
+            blocks.append(q[:, base:].astype(np.float32))
+    return np.concatenate(blocks, axis=1).astype(np.float32)
 
 
 def _knn_indices(points: np.ndarray, k: int) -> np.ndarray:
@@ -955,6 +1054,42 @@ def _traj_points_from_grid(
 def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
     if name.endswith("_traj"):
         base = str(name)[: -len("_traj")]
+        if base == "12d_dual_arm":
+            cfg_base = SimpleNamespace(**vars(cfg))
+            n_train = max(1, int(getattr(cfg, "n_train", 1)))
+            cfg_base.n_grid = int(
+                max(
+                    int(getattr(cfg, "n_grid", 1)),
+                    int(getattr(cfg, "traj_grid_min", 1)),
+                )
+            )
+            _, grid = generate_dataset(base, cfg_base)
+            traj_count_raw = int(getattr(cfg, "traj_count", max(16, n_train // 64)))
+            traj_count = int(max(1, min(n_train, traj_count_raw)))
+            traj_len = int(max(8, getattr(cfg, "traj_len", int(math.ceil(n_train / max(traj_count, 1))))))
+            traj_knn = int(max(4, getattr(cfg, "traj_knn", 20)))
+            x_traj = _traj_points_from_grid(
+                grid=_workspace_pose_rpy_embed(grid.astype(np.float32)),
+                n_train=n_train,
+                seed=int(getattr(cfg, "seed", 0)),
+                traj_count=traj_count,
+                traj_len=traj_len,
+                traj_knn=traj_knn,
+                diverse_starts=True,
+            )
+            grid_ref = grid.astype(np.float32)
+            # Return original state-space points, not embedded points.
+            embed_traj = np.asarray(x_traj, dtype=np.float32)
+            embed_grid = _workspace_pose_rpy_embed(grid_ref)
+            try:
+                from scipy.spatial import cKDTree  # type: ignore
+
+                tree = cKDTree(embed_grid.astype(np.float64))
+                _, nn_idx = tree.query(embed_traj.astype(np.float64), k=1)
+            except Exception:
+                d2 = np.sum((embed_traj[:, None, :] - embed_grid[None, :, :]) ** 2, axis=2)
+                nn_idx = np.argmin(d2, axis=1)
+            return grid_ref[np.asarray(nn_idx, dtype=np.int64)].astype(np.float32), grid_ref
         if base in TRAJ_3D_CODIM1_BASES:
             cfg_base = SimpleNamespace(**vars(cfg))
             n_train = max(1, int(getattr(cfg, "n_train", 1)))
@@ -1103,7 +1238,7 @@ def generate_dataset(name: str, cfg) -> Tuple[np.ndarray, np.ndarray]:
         return _workspace_sine_surface_pose_n6(cfg)
     if name == "6d_workspace_sine_surface_pose_traj":
         return _workspace_sine_surface_pose_n6_traj(cfg)
-    if name == "12d_dual_arm_pose_yoffset_samex_plane_sameori":
+    if name == "12d_dual_arm":
         return _dual_arm_pose_yoffset_samex_plane_sameori_n12(cfg)
     if name == "2d_noisy_sine":
         t = np.random.uniform(-math.pi, math.pi, size=(cfg.n_train, 1))
